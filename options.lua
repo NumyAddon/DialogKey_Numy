@@ -6,19 +6,20 @@ ns.defaultOptions = {
         "SPACE",
     },
     ignoreDisabledButtons = false,
+    ignoreWithModifier = false,
     showGlow = true,
     dialogBlacklist = {},
     customFrames = {},
     numKeysForGossip = true,
     numKeysForQuestRewards = true,
-    dontClickSummons = false,
-    dontClickDuels = false,
-    dontClickRevives = false,
-    dontClickReleases = false,
+    dontClickSummons = true,
+    dontClickDuels = true,
+    dontClickRevives = true,
+    dontClickReleases = true,
+    dontAcceptInvite = true,
     useSoulstoneRez = true,
-    dontAcceptInvite = false,
+    handleCraftingOrders = true,
     postAuctions = false,
-    ignoreWithModifier = false,
 }
 
 -- Using #info here so that the option toggles/buttons/etc can be placed anywhere in the tree below and correctly update the option above via name matching.
@@ -31,10 +32,17 @@ local function refreshPopupBlacklist()
     end
 end
 
+-- only want this for toggles
+local function wrapName(name)
+    return "|cffffd100" .. name .. "|r"
+end
+
 local increment = CreateCounter();
 
 ns.interfaceOptions = {
     type = "group",
+    set = optionSetter,
+    get = optionGetter,
     args = {
         header1 = {
             order = increment(),
@@ -65,99 +73,67 @@ ns.interfaceOptions = {
             name = "General",
             desc = "Basic Options for personal preferences",
             type = "group",
-            set = optionSetter,
-            get = optionGetter,
             args = {
                 showGlow = {
                     order = increment(),
-                    name = "|cffffd100Enable Glow|r",
+                    name = wrapName("Enable Glow"),
                     desc = "Show the glow effect when DialogKey clicks a button",
                     descStyle = "inline", width = "full", type = "toggle",
                 };
-                numKeysForGossip = {
-                    order = increment(),
-                    name = "|cffffd100Number keys for Gossip|r",
-                    desc = "Use the number keys (1 -> 0) to select Gossip options or Quests from an NPC dialog window",
-                    descStyle = "inline", width = "full", type = "toggle",
-                };
-                numKeysForQuestRewards = {
-                    order = increment(),
-                    name = "|cffffd100Number keys for Quest Rewards|r",
-                    desc = "Use the number keys (1 -> 0) to select Quest rewards when multiple are available",
-                    descStyle = "inline", width = "full", type = "toggle",
-                };
-                postAuctions = {
-                    order = increment(),
-                    name = "|cffffd100Post Auctions|r",
-                    desc = "Allow DialogKey to Post Auctions",
-                    descStyle = "inline", width = "full", type = "toggle",
-                };
-                dontAcceptInvite = {
-                    order = increment(),
-                    name = "|cffffd100Don't Accept Group Invites|r",
-                    desc = "Don't allow DialogKey to accept Raid/Party Invitations",
-                    descStyle = "inline", width = "full", type = "toggle",
-                };
-                dontClickSummons = {
-                    order = increment(),
-                    name = "|cffffd100Don't Accept Summons|r",
-                    desc = "Don't allow DialogKey to accept Summon Requests",
-                    descStyle = "inline", width = "full", type = "toggle",
-                };
-                dontClickDuels = {
-                    order = increment(),
-                    name = "|cffffd100Don't Accept Duels|r",
-                    desc = "Don't allow DialogKey to accept Duel Requests",
-                    descStyle = "inline", width = "full", type = "toggle",
-                };
-                dontClickRevives = {
-                    order = increment(),
-                    name = "|cffffd100Don't Accept Revives|r",
-                    desc = "Don't allow DialogKey to accept Resurrections",
-                    descStyle = "inline", width = "full", type = "toggle",
-                };
-                dontClickReleases = {
-                    order = increment(),
-                    name = "|cffffd100Don't Release Spirit|r",
-                    desc = "Don't allow DialogKey to Release Spirit",
-                    descStyle = "inline", width = "full", type = "toggle",
-                };
-                useSoulstoneRez = {
-                    order = increment(),
-                    name = "|cffffd100Use Class-specific Revive|r",
-                    desc = "Use Soulstone/Ankh/etc. resurrection option when one is available and a normal/battle resurrection is not\n\nThis option |cffff0000ignores|r the |cffffd100Don't Accept Revives|r option!",
-                    descStyle = "inline", width = "full", type = "toggle",
-                };
-            },
-        };
-        priorityGroup = {
-            order = increment(),
-            name = "Priority",
-            desc = "Advanced Options to control DialogKey button priority",
-            type = "group",
-            set = optionSetter,
-            get = optionGetter,
-            args = {
                 ignoreWithModifier = {
                     order = increment(),
-                    name = "|cffffd100Ignore DialogKey with Modifiers|r",
+                    name = wrapName("Ignore DialogKey with Modifiers"),
                     desc = "Disable DialogKey while any modifier key is held (Shift, Alt, Ctrl)",
                     descStyle = "inline", width = "full", type = "toggle",
                 };
                 ignoreDisabledButtons = {
                     order = increment(),
-                    name = "|cffffd100Ignore Disabled Buttons|r",
+                    name = wrapName("Ignore Disabled Buttons"),
                     desc = "Don't allow DialogKey to click on disabled (greyed out) buttons",
                     descStyle = "inline", width = "full", type = "toggle",
                 };
-                temp = {
+                numKeysForGossip = {
                     order = increment(),
-                    name = "=== Advanced Priority Customization NYI ===",
-                    type = "description",
-                    fontSize = "medium",
+                    name = wrapName("Number keys for Gossip"),
+                    desc = "Use the number keys (1 -> 0) to select Gossip options or Quests from an NPC dialog window",
+                    descStyle = "inline", width = "full", type = "toggle",
+                };
+                numKeysForQuestRewards = {
+                    order = increment(),
+                    name = wrapName("Number keys for Quest Rewards"),
+                    desc = "Use the number keys (1 -> 0) to select Quest rewards when multiple are available",
+                    descStyle = "inline", width = "full", type = "toggle",
+                };
+                postAuctions = {
+                    order = increment(),
+                    name = wrapName("Post Auctions"),
+                    desc = "Post Auctions",
+                    descStyle = "inline", width = "full", type = "toggle",
+                };
+                handleCraftingOrders = {
+                    order = increment(),
+                    name = wrapName("Crafting Orders"),
+                    desc = "Handle Crafting Orders: Start them, Craft them, Complete them",
+                    descStyle = "inline", width = "full", type = "toggle",
                 };
             },
         };
+        --priorityGroup = {
+        --    order = increment(),
+        --    name = "Priority",
+        --    desc = "Advanced Options to control DialogKey button priority",
+        --    type = "group",
+        --    set = optionSetter,
+        --    get = optionGetter,
+        --    args = {
+        --        temp = {
+        --            order = increment(),
+        --            name = "=== Advanced Priority Customization NYI ===",
+        --            type = "description",
+        --            fontSize = "medium",
+        --        };
+        --    },
+        --};
         watchlistGroup = {
             order = increment(),
             name = "Custom Watchlist",
@@ -209,7 +185,7 @@ If you have trouble finding the name, try "/fstack", pressing ALT until the fram
                     order = increment(),
                     type = "description",
                     name = function()
-                        local text = "Currently watched frames:\n"
+                        local text = wrapName("Currently watched frames:") .. "\n"
                         for k, _ in pairs(ns.Core.db.customFrames) do
                             local frame = ns.Core:GetFrameByName(k);
                             local context = frame and " (exists)" or " (not found, might not be loaded yet)";
@@ -226,7 +202,42 @@ If you have trouble finding the name, try "/fstack", pressing ALT until the fram
             desc = "List of popup dialogs for DialogKey to completely ignore",
             type = "group",
             args = {
-                -- fill db.dialogBlacklist
+                dontAcceptInvite = {
+                    order = increment(),
+                    name = wrapName("Don't Accept Group Invites"),
+                    desc = "Don't allow DialogKey to accept Raid/Party Invitations",
+                    descStyle = "inline", width = "full", type = "toggle",
+                },
+                dontClickSummons = {
+                    order = increment(),
+                    name = wrapName("Don't Accept Summons"),
+                    desc = "Don't allow DialogKey to accept Summon Requests",
+                    descStyle = "inline", width = "full", type = "toggle",
+                },
+                dontClickDuels = {
+                    order = increment(),
+                    name = wrapName("Don't Accept Duels"),
+                    desc = "Don't allow DialogKey to accept Duel Requests",
+                    descStyle = "inline", width = "full", type = "toggle",
+                },
+                dontClickRevives = {
+                    order = increment(),
+                    name = wrapName("Don't Accept Revives"),
+                    desc = "Don't allow DialogKey to accept Resurrections",
+                    descStyle = "inline", width = "full", type = "toggle",
+                },
+                dontClickReleases = {
+                    order = increment(),
+                    name = wrapName("Don't Release Spirit"),
+                    desc = "Don't allow DialogKey to Release Spirit",
+                    descStyle = "inline", width = "full", type = "toggle",
+                },
+                useSoulstoneRez = {
+                    order = increment(),
+                    name = wrapName("Use Class-specific Revive"),
+                    desc = "Use Soulstone/Ankh/etc. resurrection option when one is available and a normal/battle resurrection is not\n\nThis option |cffff0000ignores|r the |cffffd100Don't Accept Revives|r option!",
+                    descStyle = "inline", width = "full", type = "toggle",
+                },
                 desc = {
                     order = increment(),
                     name = [[
@@ -272,7 +283,7 @@ Simply add (part of) the text that appears in the popup, and DialogKey will igno
                     order = increment(),
                     type = "description",
                     name = function()
-                        local text = "Currently ignored texts:\n"
+                        local text = wrapName("Currently ignored texts:") .. "\n"
                         for k, _ in pairs(ns.Core.db.dialogBlacklist) do
                             text = text .. " - " .. k .. "\n"
                         end

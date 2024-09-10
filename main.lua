@@ -160,12 +160,35 @@ function DialogKey:GetFirstVisiblePopup()
     end
 end
 
+--- @param frame Button
+function DialogKey:GuardDisabled(frame)
+    if not self.db.ignoreDisabledButtons then return true; end
+
+    return frame:IsEnabled() and frame:IsMouseClickEnabled();
+end
+
 --- @return Button|nil
 function DialogKey:GetFirstVisibleCustomFrame()
     for frameName, _ in pairs(self.db.customFrames) do
         local frame = self:GetFrameByName(frameName)
-        if frame and frame:IsVisible() and frame:IsObjectType('Button') then
+        if frame and frame:IsVisible() and frame:IsObjectType('Button') and self:GuardDisabled(frame) then
             return frame ---@diagnostic disable-line: return-type-mismatch
+        end
+    end
+end
+
+--- @return Button|nil
+function DialogKey:GetFirstVisibleCraftingOrderFrame()
+    if not self.db.handleCraftingOrders then return; end
+    local frames = {
+        "ProfessionsFrame.OrdersPage.OrderView.OrderInfo.StartOrderButton",
+        "ProfessionsFrame.OrdersPage.OrderView.CreateButton",
+        "ProfessionsFrame.OrdersPage.OrderView.CompleteOrderButton",
+    };
+    for _, frameName in ipairs(frames) do
+        local frame = self:GetFrameByName(frameName)
+        if frame and frame:IsVisible() and self:GuardDisabled(frame) then
+            return frame
         end
     end
 end
@@ -184,6 +207,7 @@ function DialogKey:ShouldIgnoreInput()
         not GossipFrame:IsVisible() and not QuestFrame:IsVisible() and not self:GetFirstVisiblePopup()
         -- Ignore input if the Auction House sell frame is not open
         and (not AuctionHouseFrame or not AuctionHouseFrame:IsVisible())
+        and not self:GetFirstVisibleCraftingOrderFrame()
         -- Ignore input if no custom frames are visible
         and not self:GetFirstVisibleCustomFrame()
     then
@@ -328,6 +352,15 @@ function DialogKey:HandleKey(key)
         -- Click Popup - the actual click is performed via OverrideBindings
         if self:GetFirstVisiblePopup() and self:GetPopupButton(self:GetFirstVisiblePopup()) then
             DialogKey.frame:SetPropagateKeyboardInput(true)
+            return
+        end
+
+        -- Crafting Orders
+        local craftingOrderFrame = self:GetFirstVisibleCraftingOrderFrame()
+        if craftingOrderFrame then
+            DialogKey.frame:SetPropagateKeyboardInput(false)
+            self:Glow(craftingOrderFrame)
+            craftingOrderFrame:Click()
             return
         end
 
