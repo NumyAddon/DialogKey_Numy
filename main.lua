@@ -1,24 +1,26 @@
 local name = ...
 --- @class DialogKeyNS
 local ns = select(2, ...)
-_G.DialogKeyNS = ns
+
+local GetMouseFoci = GetMouseFoci or function() return {GetMouseFocus()} end
+local GetFrameMetatable = _G.GetFrameMetatable or function() return getmetatable(CreateFrame('FRAME')) end
+
+_G.DialogKeyNS = ns -- expose ourselves to the world :)
 
 --- @class DialogKey: AceAddon, AceEvent-3.0, AceHook-3.0
 local DialogKey = LibStub("AceAddon-3.0"):NewAddon(name, "AceEvent-3.0", "AceHook-3.0")
 ns.Core = DialogKey
 
 local defaultPopupBlacklist = { -- If a confirmation dialog contains one of these strings, don't accept it
-    "Are you sure you want to go back to Shal'Aran?", -- Withered Training Scenario
-    "Are you sure you want to return to your current timeline?", -- Leave Chromie Time
-    "You will be removed from Timewalking Campaigns once you use this scroll.", -- "A New Adventure Awaits" Chromie Time scroll
+    --"Are you sure you want to go back to Shal'Aran?", -- Withered Training Scenario -- why exclude this?
+    --"Are you sure you want to return to your current timeline?", -- Leave Chromie Time -- why exclude this?
+    --"You will be removed from Timewalking Campaigns once you use this scroll.", -- "A New Adventure Awaits" Chromie Time scroll -- why exclude this?
     AREA_SPIRIT_HEAL, -- Prevents cancelling the resurrection
     TOO_MANY_LUA_ERRORS,
     END_BOUND_TRADEABLE,
     ADDON_ACTION_FORBIDDEN,
 }
 
-local GetMouseFoci = GetMouseFoci or function() return {GetMouseFocus()} end
-local GetFrameMetatable = _G.GetFrameMetatable or function() return getmetatable(CreateFrame('FRAME')) end
 local function callFrameMethod(frame, method, ...)
     local functionRef = frame[method] or GetFrameMetatable().__index[method] or nop;
     local ok, result = pcall(functionRef, frame, ...);
@@ -27,7 +29,7 @@ local function callFrameMethod(frame, method, ...)
 end
 --- @return string?
 local function getFrameName(frame)
-    return callFrameMethod(frame, 'GetDebugName')
+    return callFrameMethod(frame, 'GetDebugName') ---@diagnostic disable-line: return-type-mismatch
         or callFrameMethod(frame, 'GetName')
 end
 ---@return Frame?
@@ -43,6 +45,14 @@ function DialogKey:GetFrameByName(frameName)
     return frameTable;
 end
 
+DialogKey.playerChoiceButtons = {}
+DialogKey.handledCustomFrames = {}
+DialogKey.ignoreCheckCustomFrames = false
+DialogKey.proxyFrames = {}
+DialogKey.proxyFrameNamePrefix = "DialogKeyNumy_ProxyFrame_"
+DialogKey.proxyFrameIndex = 0
+DialogKey.activeOverrideBindings = {}
+
 function DialogKey:OnInitialize()
     if C_AddOns.IsAddOnLoaded("Immersion") then
         self:print("Immersion AddOn detected.")
@@ -55,15 +65,7 @@ function DialogKey:OnInitialize()
         if self.db[k] == nil then self.db[k] = v end
     end
 
-    self.glowFrame = CreateFrame("Frame", nil, UIParent)
-    self.glowFrame:SetPoint("CENTER", 0, 0)
-    self.glowFrame:SetFrameStrata("TOOLTIP")
-    self.glowFrame:SetSize(50,50)
-    self.glowFrame:SetScript("OnUpdate", function(...) self:GlowFrameUpdate(...) end)
-    self.glowFrame:Hide()
-    self.glowFrame.tex = self.glowFrame:CreateTexture()
-    self.glowFrame.tex:SetAllPoints()
-    self.glowFrame.tex:SetColorTexture(1,1,0,0.5)
+    self:InitGlowFrame()
 
     self:RegisterEvent("GOSSIP_SHOW")
     self:RegisterEvent("QUEST_GREETING")
@@ -71,7 +73,9 @@ function DialogKey:OnInitialize()
     self:RegisterEvent("PLAYER_REGEN_DISABLED")
     self:RegisterEvent("ADDON_LOADED")
 
-    self.frame = CreateFrame("Frame", "DialogKeyFrame", UIParent)
+    self:SecureHook("CreateFrame", "CheckCustomFrames")
+
+    self.frame = CreateFrame("Frame", nil, UIParent)
     self.frame:SetScript("OnKeyDown", function(_, ...) self:HandleKey(...) end)
     self.frame:SetFrameStrata("TOOLTIP") -- Ensure we receive keyboard events first
     self.frame:EnableKeyboard(true)
@@ -110,6 +114,7 @@ function DialogKey:ADDON_LOADED(_, addon)
         self:SecureHook(PlayerChoiceFrame, "TryShow", "OnPlayerChoiceShow")
         self:SecureHookScript(PlayerChoiceFrame, "OnHide", "OnPlayerChoiceHide")
     end
+    self:CheckCustomFrames()
 end
 
 function DialogKey:QUEST_COMPLETE()
@@ -130,7 +135,18 @@ function DialogKey:PLAYER_REGEN_DISABLED()
     self:ClearOverrideBindings()
 end
 
-DialogKey.playerChoiceButtons = {}
+function DialogKey:InitGlowFrame()
+    self.glowFrame = CreateFrame("Frame", nil, UIParent)
+    self.glowFrame:SetPoint("CENTER", 0, 0)
+    self.glowFrame:SetFrameStrata("TOOLTIP")
+    self.glowFrame:SetSize(50,50)
+    self.glowFrame:SetScript("OnUpdate", function(...) self:GlowFrameUpdate(...) end)
+    self.glowFrame:Hide()
+    self.glowFrame.tex = self.glowFrame:CreateTexture()
+    self.glowFrame.tex:SetAllPoints()
+    self.glowFrame.tex:SetColorTexture(1,1,0,0.5)
+end
+
 function DialogKey:OnPlayerChoiceShow()
     if not self.db.handlePlayerChoice then return end
     local frame = PlayerChoiceFrame;
@@ -226,7 +242,8 @@ function DialogKey:GetFirstVisibleCraftingOrderFrame()
         "ProfessionsFrame.OrdersPage.OrderView.CompleteOrderButton",
     };
     for _, frameName in ipairs(frames) do
-        local frame = self:GetFrameByName(frameName)
+        --- @type Button?
+        local frame = self:GetFrameByName(frameName) ---@diagnostic disable-line: assign-type-mismatch
         if frame and frame:IsVisible() and self:GuardDisabled(frame) then
             return frame
         end
@@ -318,14 +335,15 @@ function DialogKey:GetPopupButton(popupFrame)
     return popupFrame.button1
 end
 
-DialogKey.activeOverrideBindings = {}
 -- Clears all override bindings associated with an owner, clears all override bindings if no owner is passed
+--- @param owner Frame?
 function DialogKey:ClearOverrideBindings(owner)
     if InCombatLockdown() then return end
     if not owner then
         for owner, _ in pairs(self.activeOverrideBindings) do
             self:ClearOverrideBindings(owner)
         end
+        return
     end
     if not self.activeOverrideBindings[owner] then return end
     for key in pairs(self.activeOverrideBindings[owner]) do
@@ -336,6 +354,9 @@ end
 
 -- Set an override click binding, these bindings can safely perform secure actions
 -- Override bindings, are temporary keybinds, which can only be modified out of combat; they are tied to an owner, and need to be cleared when the target is hidden
+--- @param owner Frame
+--- @param targetName string
+--- @param keys string[]
 function DialogKey:SetOverrideBindings(owner, targetName, keys)
     if InCombatLockdown() then return end
     self.activeOverrideBindings[owner] = {}
@@ -343,6 +364,60 @@ function DialogKey:SetOverrideBindings(owner, targetName, keys)
         self.activeOverrideBindings[owner][key] = owner;
         SetOverrideBindingClick(owner, false, key, targetName, 'LeftButton');
     end
+end
+
+function DialogKey:CheckCustomFrames()
+    if self.ignoreCheckCustomFrames then return end
+    for frameName, _ in pairs(self.db.customFrames) do
+        local frame = self:GetFrameByName(frameName)
+        if frame and not self.handledCustomFrames[frame] then
+            self.handledCustomFrames[frame] = frameName
+            self:SecureHookScript(frame, "OnShow", "OnCustomFrameShow")
+            self:SecureHookScript(frame, "OnHide", "OnCustomFrameHide")
+            if frame:IsVisible() then
+                self:OnCustomFrameShow(frame)
+            end
+        end
+    end
+end
+
+--- @param frame Frame
+--- @return Button, string
+function DialogKey:AcquireProxyButton(frame)
+    local proxyButton = self.proxyFrames[frame]
+    if not proxyButton then
+        self.proxyFrameIndex = self.proxyFrameIndex + 1
+        local proxyName = self.proxyFrameNamePrefix .. self.proxyFrameIndex
+        self.ignoreCheckCustomFrames = true
+        proxyButton = CreateFrame("Button", proxyName, nil, "SecureActionButtonTemplate")
+        self.ignoreCheckCustomFrames = false
+        proxyButton:SetAttribute("type", "click")
+        proxyButton:SetAttribute("typerelease", "click")
+        proxyButton:SetAttribute("clickbutton", frame)
+        proxyButton:RegisterForClicks("AnyUp", "AnyDown")
+	    proxyButton:SetAttribute("pressAndHoldAction", "1")
+	    proxyButton:HookScript("OnClick", function() self:Glow(frame) end)
+        proxyButton.name = proxyName
+        proxyButton.target = frame
+        self.proxyFrames[frame] = proxyButton
+    end
+    return proxyButton, proxyButton.name
+end
+
+function DialogKey:OnCustomFrameShow(frame)
+    if InCombatLockdown() or not self.db.customFrames[self.handledCustomFrames[frame]] then return end
+
+    local proxyButton, proxyName = self:AcquireProxyButton(frame)
+
+    self:SetOverrideBindings(proxyButton, proxyName, self.db.keys)
+end
+
+function DialogKey:OnCustomFrameHide(frame)
+    if InCombatLockdown() then return end
+
+    local proxyButton = self:AcquireProxyButton(frame)
+
+    self:ClearOverrideBindings(proxyButton)
 end
 
 DialogKey.checkOnUpdate = {}
@@ -392,8 +467,11 @@ function DialogKey:HandleKey(key)
     if doAction then
 
         -- Click Popup - the actual click is performed via OverrideBindings
-        if self:GetFirstVisiblePopup() and self:GetPopupButton(self:GetFirstVisiblePopup()) then
+        local popupFrame = self:GetFirstVisiblePopup()
+        local popupButton = popupFrame and self:GetPopupButton(popupFrame)
+        if popupButton then
             DialogKey.frame:SetPropagateKeyboardInput(true)
+            self:Glow(popupButton)
             return
         end
 
@@ -409,9 +487,7 @@ function DialogKey:HandleKey(key)
         -- Custom Frames
         local customFrame = self:GetFirstVisibleCustomFrame()
         if customFrame then
-            DialogKey.frame:SetPropagateKeyboardInput(false)
-            self:Glow(customFrame)
-            customFrame:Click()
+            DialogKey.frame:SetPropagateKeyboardInput(true)
             return
         end
 
@@ -623,8 +699,11 @@ function DialogKey:AddFrame(frameName)
 
     self.db.customFrames[frameName] = true
     self:Glow(frame, 0.25, true)
-    self:print("Added frame: ", frameName, '. Remove it again with /dialogkey remove; or in the options UI.')
-    -- todo: consider making it always a secure click
+    self:print("Added frame:", frameName, ". Remove it again with /dialogkey remove; or in the options UI.")
+    self:CheckCustomFrames()
+    if frame:IsVisible() then
+        self:OnCustomFrameShow(frame)
+    end
 end
 
 function DialogKey:RemoveFrame(frameName)
@@ -642,8 +721,8 @@ function DialogKey:RemoveFrame(frameName)
 
     self.db.customFrames[frameName] = nil
     self:Glow(frame, 0.25, true)
-    self:print("Removed frame: ", frameName)
-    -- todo: if handled by magic secure click code, unregister it
+    self:print("Removed frame:", frameName)
+    self:OnCustomFrameHide(frame)
 end
 
 --- Returns the first clickable frame that has mouse focus
