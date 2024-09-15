@@ -54,11 +54,6 @@ DialogKey.proxyFrameIndex = 0
 DialogKey.activeOverrideBindings = {}
 
 function DialogKey:OnInitialize()
-    if C_AddOns.IsAddOnLoaded("Immersion") then
-        self:print("Immersion AddOn detected.")
-        self:print("The Immersion addon is known to conflict with DialogKey!")
-        self:print("Please check your addon settings before reporting bugs.")
-    end
     DialogKeyNumyDB = DialogKeyNumyDB or {}
     self.db = DialogKeyNumyDB
     for k, v in pairs(ns.defaultOptions) do

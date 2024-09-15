@@ -10,7 +10,6 @@
 ## Version: @project-version@
 ## IconTexture: Interface\Addons\DialogKey_Numy\media\icon
 ## SavedVariables: DialogKeyNumyDB
-## OptionalDeps: Immersion
 ## X-Curse-Project-ID: 1098587
 ## X-Wago-ID: BKpqVyGE
 
