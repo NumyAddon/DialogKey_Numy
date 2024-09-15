@@ -69,6 +69,7 @@ function DialogKey:OnInitialize()
     self:RegisterEvent("QUEST_GREETING")
     self:RegisterEvent("QUEST_COMPLETE")
     self:RegisterEvent("PLAYER_REGEN_DISABLED")
+    self:RegisterEvent("ADDON_LOADED")
 
     self.frame = CreateFrame("Frame", "DialogKeyFrame", UIParent)
     self.frame:SetScript("OnKeyDown", function(_, ...) self:HandleKey(...) end)
@@ -104,6 +105,13 @@ function DialogKey:OnInitialize()
     end
 end
 
+function DialogKey:ADDON_LOADED(_, addon)
+    if addon == 'Blizzard_PlayerChoice' then
+        self:SecureHook(PlayerChoiceFrame, "TryShow", "OnPlayerChoiceShow")
+        self:SecureHookScript(PlayerChoiceFrame, "OnHide", "OnPlayerChoiceHide")
+    end
+end
+
 function DialogKey:QUEST_COMPLETE()
     self.itemChoice = (GetNumQuestChoices() > 1 and -1 or 1)
 end
@@ -120,6 +128,38 @@ function DialogKey:PLAYER_REGEN_DISABLED()
     -- Disable DialogKey fully upon entering combat
     self.frame:SetPropagateKeyboardInput(true)
     self:ClearOverrideBindings()
+end
+
+DialogKey.playerChoiceButtons = {}
+function DialogKey:OnPlayerChoiceShow()
+    if not self.db.handlePlayerChoice then return end
+    local frame = PlayerChoiceFrame;
+    if not frame or not frame:IsVisible() then return end
+
+    local choiceInfo = C_PlayerChoice.GetCurrentPlayerChoiceInfo()
+    if not choiceInfo then return end
+    local buttons = {}
+    local i = 0
+    for _, option in ipairs(choiceInfo.options) do
+        for _, button in ipairs(option.buttons) do
+            i = i + 1
+            buttons[button.id] = i
+        end
+    end
+
+    for option in frame.optionPools:EnumerateActive() do
+        for button in option.buttons.buttonPool:EnumerateActive() do
+            local key = buttons[button.buttonID]
+            if self.db.numKeysForPlayerChoice then
+                button.Text:SetText(key .. ' ' .. button.Text:GetText())
+            end
+            self.playerChoiceButtons[key] = button
+        end
+    end
+end
+
+function DialogKey:OnPlayerChoiceHide()
+    self.playerChoiceButtons = {}
 end
 
 -- Thanks, [github]@mbattersby
@@ -210,6 +250,8 @@ function DialogKey:ShouldIgnoreInput()
         and not self:GetFirstVisibleCraftingOrderFrame()
         -- Ignore input if no custom frames are visible
         and not self:GetFirstVisibleCustomFrame()
+        -- Ignore input if no player choice buttons are visible
+        and not next(self.playerChoiceButtons)
     then
         return true
     end
@@ -299,7 +341,7 @@ function DialogKey:SetOverrideBindings(owner, targetName, keys)
     self.activeOverrideBindings[owner] = {}
     for _, key in pairs(keys) do
         self.activeOverrideBindings[owner][key] = owner;
-        SetOverrideBindingClick(owner, false, key, targetName);
+        SetOverrideBindingClick(owner, false, key, targetName, 'LeftButton');
     end
 end
 
@@ -415,6 +457,17 @@ function DialogKey:HandleKey(key)
                 DialogKey:Glow(QuestFrameCompleteQuestButton)
                 GetQuestReward(DialogKey.itemChoice)
             end
+            return
+        end
+    end
+
+    -- Player Choice
+    if self.db.handlePlayerChoice and next(self.playerChoiceButtons) and (doAction or self.db.numKeysForPlayerChoice) then
+        local button = self.playerChoiceButtons[keynum]
+        if button then
+            DialogKey.frame:SetPropagateKeyboardInput(false)
+            self:Glow(button)
+            button:Click()
             return
         end
     end

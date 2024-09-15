@@ -19,6 +19,8 @@ ns.defaultOptions = {
     dontAcceptInvite = true,
     useSoulstoneRez = true,
     handleCraftingOrders = true,
+    handlePlayerChoice = true,
+    numKeysForPlayerChoice = true,
     postAuctions = false,
 }
 
@@ -37,7 +39,7 @@ local function wrapName(name)
     return "|cffffd100" .. name .. "|r"
 end
 
-local increment = CreateCounter();
+local increment = CreateCounter()
 
 ns.interfaceOptions = {
     type = "group",
@@ -48,26 +50,26 @@ ns.interfaceOptions = {
             order = increment(),
             name = "Primary Keybinds",
             type = "header",
-        };
+        },
         key1 = {
             order = increment(),
             name = "",
             type = "keybinding",
             set = (function(info, val) ns.Core.db.keys[1] = val end),
             get = (function(info) return ns.Core.db.keys[1] end),
-        };
+        },
         key2 = {
             order = increment(),
             name = "",
             type = "keybinding",
             set = (function(_, val) ns.Core.db.keys[2] = val end),
             get = (function(_) return ns.Core.db.keys[2] end),
-        };
+        },
         header2 = {
             order = increment(),
             name = "Options",
             type = "header",
-        };
+        },
         generalGroup = {
             order = increment(),
             name = "General",
@@ -79,45 +81,58 @@ ns.interfaceOptions = {
                     name = wrapName("Enable Glow"),
                     desc = "Show the glow effect when DialogKey clicks a button",
                     descStyle = "inline", width = "full", type = "toggle",
-                };
+                },
                 ignoreWithModifier = {
                     order = increment(),
                     name = wrapName("Ignore DialogKey with Modifiers"),
                     desc = "Disable DialogKey while any modifier key is held (Shift, Alt, Ctrl)",
                     descStyle = "inline", width = "full", type = "toggle",
-                };
+                },
                 ignoreDisabledButtons = {
                     order = increment(),
                     name = wrapName("Ignore Disabled Buttons"),
                     desc = "Don't allow DialogKey to click on disabled (greyed out) buttons",
                     descStyle = "inline", width = "full", type = "toggle",
-                };
+                },
                 numKeysForGossip = {
                     order = increment(),
                     name = wrapName("Number keys for Gossip"),
                     desc = "Use the number keys (1 -> 0) to select Gossip options or Quests from an NPC dialog window",
                     descStyle = "inline", width = "full", type = "toggle",
-                };
+                },
                 numKeysForQuestRewards = {
                     order = increment(),
                     name = wrapName("Number keys for Quest Rewards"),
                     desc = "Use the number keys (1 -> 0) to select Quest rewards when multiple are available",
                     descStyle = "inline", width = "full", type = "toggle",
-                };
+                },
                 postAuctions = {
                     order = increment(),
                     name = wrapName("Post Auctions"),
                     desc = "Post Auctions",
                     descStyle = "inline", width = "full", type = "toggle",
-                };
+                },
                 handleCraftingOrders = {
                     order = increment(),
                     name = wrapName("Crafting Orders"),
                     desc = "Handle Crafting Orders: Start them, Craft them, Complete them",
                     descStyle = "inline", width = "full", type = "toggle",
-                };
+                },
+                handlePlayerChoice = {
+                    order = increment(),
+                    name = wrapName("Player Choice"),
+                    desc = "Use keybinding to select the first Player Choice option",
+                    descStyle = "inline", width = "full", type = "toggle",
+                },
+                numKeysForPlayerChoice = {
+                    order = increment(),
+                    name = wrapName("Number keys for Player Choice"),
+                    desc = "Use the number keys (1 -> 0) to select Player Choices",
+                    disabled = function() return not ns.Core.db.handlePlayerChoice end,
+                    descStyle = "inline", width = "full", type = "toggle",
+                },
             },
-        };
+        },
         --priorityGroup = {
         --    order = increment(),
         --    name = "Priority",
@@ -131,9 +146,9 @@ ns.interfaceOptions = {
         --            name = "=== Advanced Priority Customization NYI ===",
         --            type = "description",
         --            fontSize = "medium",
-        --        };
+        --        },
         --    },
-        --};
+        --},
         watchlistGroup = {
             order = increment(),
             name = "Custom Watchlist",
@@ -150,7 +165,7 @@ If you have trouble finding the name, try "/fstack", pressing ALT until the fram
 ]],
                     type = "description",
                     fontSize = "medium",
-                };
+                },
                 addFrame = {
                     order = increment(),
                     type = "input",
@@ -169,7 +184,7 @@ If you have trouble finding the name, try "/fstack", pressing ALT until the fram
                     values = function()
                         local tempTable = {}
                         if not next(ns.Core.db.customFrames) then
-                            return { [''] = ' * No frames are currently watched *' };
+                            return { [''] = ' * No frames are currently watched *' }
                         end
                         for frame, _ in pairs(ns.Core.db.customFrames) do
                             tempTable[frame] = frame
@@ -187,15 +202,15 @@ If you have trouble finding the name, try "/fstack", pressing ALT until the fram
                     name = function()
                         local text = wrapName("Currently watched frames:") .. "\n"
                         for k, _ in pairs(ns.Core.db.customFrames) do
-                            local frame = ns.Core:GetFrameByName(k);
-                            local context = frame and " (exists)" or " (not found, might not be loaded yet)";
+                            local frame = ns.Core:GetFrameByName(k)
+                            local context = frame and " (exists)" or " (not found, might not be loaded yet)"
                             text = text .. " - " .. k .. context .. "\n"
                         end
                         return text
                     end,
                 },
             },
-        };
+        },
         popupBlacklistGroup = {
             order = increment(),
             name = "Popup Blacklist",
@@ -266,7 +281,7 @@ Simply add (part of) the text that appears in the popup, and DialogKey will igno
                     values = function()
                         local tempTable = {}
                         if not next(ns.Core.db.dialogBlacklist) then
-                            return { [''] = ' * No texts are currently ignored *' };
+                            return { [''] = ' * No texts are currently ignored *' }
                         end
                         for text, _ in pairs(ns.Core.db.dialogBlacklist) do
                             tempTable[text] = text
@@ -291,6 +306,6 @@ Simply add (part of) the text that appears in the popup, and DialogKey will igno
                     end,
                 },
             },
-        };
+        },
     },
 }
