@@ -11,14 +11,11 @@ _G.DialogKeyNS = ns -- expose ourselves to the world :)
 local DialogKey = LibStub("AceAddon-3.0"):NewAddon(name, "AceEvent-3.0", "AceHook-3.0")
 ns.Core = DialogKey
 
-local defaultPopupBlacklist = { -- If a confirmation dialog contains one of these strings, don't accept it
-    --"Are you sure you want to go back to Shal'Aran?", -- Withered Training Scenario -- why exclude this?
-    --"Are you sure you want to return to your current timeline?", -- Leave Chromie Time -- why exclude this?
-    --"You will be removed from Timewalking Campaigns once you use this scroll.", -- "A New Adventure Awaits" Chromie Time scroll -- why exclude this?
+local defaultPopupBlacklist = { -- If a popup dialog contains one of these strings, don't click it
     AREA_SPIRIT_HEAL, -- Prevents cancelling the resurrection
     TOO_MANY_LUA_ERRORS,
-    END_BOUND_TRADEABLE,
-    ADDON_ACTION_FORBIDDEN,
+    END_BOUND_TRADEABLE, -- Probably quite reasonable to make the user click on this one
+    ADDON_ACTION_FORBIDDEN, -- Don't disable and reload UI on errors
 }
 
 local function callFrameMethod(frame, method, ...)
@@ -46,11 +43,6 @@ function DialogKey:GetFrameByName(frameName)
 end
 
 DialogKey.playerChoiceButtons = {}
-DialogKey.handledCustomFrames = {}
-DialogKey.ignoreCheckCustomFrames = false
-DialogKey.proxyFrames = {}
-DialogKey.proxyFrameNamePrefix = "DialogKeyNumy_ProxyFrame_"
-DialogKey.proxyFrameIndex = 0
 DialogKey.activeOverrideBindings = {}
 
 function DialogKey:OnInitialize()
@@ -68,19 +60,7 @@ function DialogKey:OnInitialize()
     self:RegisterEvent("PLAYER_REGEN_DISABLED")
     self:RegisterEvent("ADDON_LOADED")
 
-    self:SecureHook("CreateFrame", "CheckCustomFrames")
-
-    self.frame = CreateFrame("Frame", nil, UIParent)
-    self.frame:SetScript("OnKeyDown", function(_, ...) self:HandleKey(...) end)
-    self.frame:SetFrameStrata("TOOLTIP") -- Ensure we receive keyboard events first
-    self.frame:EnableKeyboard(true)
-    self.frame:SetPropagateKeyboardInput(true)
-
-    for i = 1, 4 do
-        self:SecureHookScript(_G["StaticPopup" .. i], "OnShow", "OnPopupShow")
-        self:SecureHookScript(_G["StaticPopup" .. i], "OnUpdate", "OnPopupUpdate")
-        self:SecureHookScript(_G["StaticPopup" .. i], "OnHide", "OnPopupHide")
-    end
+    self:InitMainProxyFrame()
 
     self:SecureHook("QuestInfoItem_OnClick", "SelectItemReward")
     self:SecureHook(GossipFrame, "Update", "OnGossipFrameUpdate")
@@ -109,7 +89,6 @@ function DialogKey:ADDON_LOADED(_, addon)
         self:SecureHook(PlayerChoiceFrame, "TryShow", "OnPlayerChoiceShow")
         self:SecureHookScript(PlayerChoiceFrame, "OnHide", "OnPlayerChoiceHide")
     end
-    self:CheckCustomFrames()
 end
 
 function DialogKey:QUEST_COMPLETE()
@@ -140,6 +119,31 @@ function DialogKey:InitGlowFrame()
     self.glowFrame.tex = self.glowFrame:CreateTexture()
     self.glowFrame.tex:SetAllPoints()
     self.glowFrame.tex:SetColorTexture(1,1,0,0.5)
+end
+
+function DialogKey:InitMainProxyFrame()
+    local frame = CreateFrame("Button", "DialogKey_Numy_MainClickProxyFrame", UIParent, "InsecureActionButtonTemplate")
+    frame:RegisterForClicks("AnyUp", "AnyDown")
+    frame:SetAttribute("type", "click")
+    frame:SetAttribute("typerelease", "click")
+    frame:SetAttribute("pressAndHoldAction", "1")
+    frame:SetScript("PreClick", function()
+        if InCombatLockdown() then return end
+        self:ClearOverrideBindings(frame)
+        local clickButton = frame:GetAttribute("clickbutton")
+        self:Glow(clickButton)
+    end)
+    frame:HookScript("OnClick", function()
+        if InCombatLockdown() then return end
+        frame:SetAttribute("clickbutton", nil)
+        frame:SetPropagateKeyboardInput(true)
+    end)
+    frame:SetScript("OnKeyDown", function(_, ...) self:HandleKey(...) end)
+    frame:SetFrameStrata("TOOLTIP") -- Ensure we receive keyboard events first
+    frame:EnableKeyboard(true)
+    frame:SetPropagateKeyboardInput(true)
+
+    self.frame = frame
 end
 
 function DialogKey:OnPlayerChoiceShow()
@@ -181,7 +185,7 @@ function DialogKey:OnGossipFrameUpdate(gossipFrame)
 
     local n = 1
     for _, frame in scrollbox:EnumerateFrames() do
-        local data = frame.GetElementData and frame.GetElementData()
+        local data = frame.GetElementData and frame:GetElementData()
         local tag
         if data.buttonType == GOSSIP_BUTTON_TYPE_OPTION then
             tag = "name"
@@ -195,7 +199,9 @@ function DialogKey:OnGossipFrameUpdate(gossipFrame)
         end
         if n > 10 then break end
     end
-    scrollbox:OnSizeChanged()
+    local oldScale = scrollbox:GetScale()
+    scrollbox:SetScale(oldScale + 0.002) -- trigger OnSizeChanged
+    RunNextFrame(function() scrollbox:SetScale(oldScale) end) -- OnSizeChanged only fires if the size actually changed at the end of the frame
 end
 
 --- @return StaticPopupTemplate|nil
@@ -244,7 +250,6 @@ end
 
 function DialogKey:ShouldIgnoreInput()
     if InCombatLockdown() then return true end
-    self.frame:SetPropagateKeyboardInput(true)
 
     if self.db.ignoreWithModifier and (IsShiftKeyDown() or IsControlKeyDown() or IsAltKeyDown()) then return true end
     -- Ignore input while typing, unless at the Send Mail confirmation while typing into it!
@@ -358,165 +363,73 @@ function DialogKey:SetOverrideBindings(owner, targetName, keys)
     end
 end
 
-function DialogKey:CheckCustomFrames()
-    if self.ignoreCheckCustomFrames then return end
-    for frameName, _ in pairs(self.db.customFrames) do
-        local frame = self:GetFrameByName(frameName)
-        if frame and not self.handledCustomFrames[frame] then
-            self.handledCustomFrames[frame] = frameName
-            self:SecureHookScript(frame, "OnShow", "OnCustomFrameShow")
-            self:SecureHookScript(frame, "OnHide", "OnCustomFrameHide")
-            if frame:IsVisible() then
-                self:OnCustomFrameShow(frame)
-            end
-        end
-    end
-end
-
---- @param frame Frame
---- @return Button, string
-function DialogKey:AcquireProxyButton(frame)
-    local proxyButton = self.proxyFrames[frame]
-    if not proxyButton then
-        self.proxyFrameIndex = self.proxyFrameIndex + 1
-        local proxyName = self.proxyFrameNamePrefix .. self.proxyFrameIndex
-        self.ignoreCheckCustomFrames = true
-        proxyButton = CreateFrame("Button", proxyName, nil, "SecureActionButtonTemplate")
-        self.ignoreCheckCustomFrames = false
-        proxyButton:SetAttribute("type", "click")
-        proxyButton:SetAttribute("typerelease", "click")
-        proxyButton:SetAttribute("clickbutton", frame)
-        proxyButton:RegisterForClicks("AnyUp", "AnyDown")
-        proxyButton:SetAttribute("pressAndHoldAction", "1")
-        proxyButton:HookScript("OnClick", function() self:Glow(frame) end)
-        proxyButton.name = proxyName
-        proxyButton.target = frame
-        self.proxyFrames[frame] = proxyButton
-    end
-    return proxyButton, proxyButton.name
-end
-
-function DialogKey:OnCustomFrameShow(frame)
-    if InCombatLockdown() or not self.db.customFrames[self.handledCustomFrames[frame]] then return end
-
-    local proxyButton, proxyName = self:AcquireProxyButton(frame)
-
-    self:SetOverrideBindings(proxyButton, proxyName, self.db.keys)
-end
-
-function DialogKey:OnCustomFrameHide(frame)
+function DialogKey:SetClickbuttonBinding(frame, key)
     if InCombatLockdown() then return end
+    self.frame:SetAttribute("clickbutton", frame)
+    self:SetOverrideBindings(self.frame, self.frame:GetName(), {key})
 
-    local proxyButton = self:AcquireProxyButton(frame)
-
-    self:ClearOverrideBindings(proxyButton)
-end
-
-DialogKey.checkOnUpdate = {}
---- @param popupFrame StaticPopupTemplate # One of the StaticPopup1-4 frames
-function DialogKey:OnPopupShow(popupFrame)
-    -- Todo: consider supporting DialogKey.db.ignoreDisabledButtons option
-    -- right now disabled buttons *are* clicked, but clicking them does nothing (although the key press is still eaten regardless)
-    self.checkOnUpdate[popupFrame] = false
-    -- only act if the popup is both visible, and the first visible one
-    if InCombatLockdown() or popupFrame ~= self:GetFirstVisiblePopup() then return end
-
-    local button = self:GetPopupButton(popupFrame)
-    self:ClearOverrideBindings(popupFrame)
-    if button == false then
-        -- false means that the text is empty, and we should check again OnUpdate, for the text to be filled
-        self.checkOnUpdate[popupFrame] = true
-        return
-    end
-    if not button then return end
-
-    self:SetOverrideBindings(popupFrame, button:GetName(), self.db.keys)
-end
-
---- @param popupFrame StaticPopupTemplate # One of the StaticPopup1-4 frames
-function DialogKey:OnPopupUpdate(popupFrame)
-    if not self.checkOnUpdate[popupFrame] then return end
-
-    self:OnPopupShow(popupFrame)
-end
-
---- @param popupFrame StaticPopupTemplate # One of the StaticPopup1-4 frames
-function DialogKey:OnPopupHide(popupFrame)
-    if InCombatLockdown() then return end
-
-    self:ClearOverrideBindings(popupFrame)
+    -- just in case something goes horribly wrong, we do NOT want to get the user stuck in a situation where the keyboard stops working
+    RunNextFrame(function() self:ClearOverrideBindings(self.frame) end)
 end
 
 function DialogKey:HandleKey(key)
-    if self:ShouldIgnoreInput() then return end
-
+    if not InCombatLockdown() then self.frame:SetPropagateKeyboardInput(true) end
     local doAction = (key == self.db.keys[1] or key == self.db.keys[2])
     local keynum = doAction and 1 or tonumber(key)
     if key == "0" then
         keynum = 10
     end
+    if not doAction and not keynum then return end
+    if self:ShouldIgnoreInput() then return end
     -- DialogKey pressed, interact with popups, accepts..
     if doAction then
-
-        -- Click Popup - the actual click is performed via OverrideBindings
+        -- Popups
         local popupFrame = self:GetFirstVisiblePopup()
         local popupButton = popupFrame and self:GetPopupButton(popupFrame)
         if popupButton then
-            self.frame:SetPropagateKeyboardInput(true)
-            self:Glow(popupButton)
+            self:SetClickbuttonBinding(popupButton, key)
             return
         end
 
         -- Crafting Orders
         local craftingOrderFrame = self:GetFirstVisibleCraftingOrderFrame()
         if craftingOrderFrame then
-            self.frame:SetPropagateKeyboardInput(false)
-            self:Glow(craftingOrderFrame)
-            craftingOrderFrame:Click()
+            self:SetClickbuttonBinding(craftingOrderFrame, key)
             return
         end
 
         -- Custom Frames
         local customFrame = self:GetFirstVisibleCustomFrame()
         if customFrame then
-            self.frame:SetPropagateKeyboardInput(true)
+            self:SetClickbuttonBinding(customFrame, key)
             return
         end
 
         -- Auction House
         if self.db.postAuctions and AuctionHouseFrame and AuctionHouseFrame:IsVisible() then
             if AuctionHouseFrame.displayMode == AuctionHouseFrameDisplayMode.CommoditiesSell then
-                self.frame:SetPropagateKeyboardInput(false)
-                self:Glow(AuctionHouseFrame.CommoditiesSellFrame.PostButton)
-                AuctionHouseFrame.CommoditiesSellFrame:PostItem()
+                self:SetClickbuttonBinding(AuctionHouseFrame.CommoditiesSellFrame.PostButton, key)
                 return
             elseif AuctionHouseFrame.displayMode == AuctionHouseFrameDisplayMode.ItemSell then
-                self.frame:SetPropagateKeyboardInput(false)
-                self:Glow(AuctionHouseFrame.ItemSellFrame.PostButton)
-                AuctionHouseFrame.ItemSellFrame:PostItem()
+                self:SetClickbuttonBinding(AuctionHouseFrame.ItemSellFrame.PostButton, key)
                 return
             end
         end
 
         -- Complete Quest
         if QuestFrameProgressPanel:IsVisible() then
-            self.frame:SetPropagateKeyboardInput(false)
             if not QuestFrameCompleteButton:IsEnabled() and self.db.ignoreDisabledButtons then
                 -- click "Cencel" button when "Complete" is disabled on progress panel
-                self:Glow(QuestFrameGoodbyeButton)
-                CloseQuest()
+                self:SetClickbuttonBinding(QuestFrameGoodbyeButton, key)
             else
-                self:Glow(QuestFrameCompleteButton)
-                CompleteQuest()
+                self:SetClickbuttonBinding(QuestFrameCompleteButton, key)
             end
             return
         -- Accept Quest
         elseif QuestFrameDetailPanel:IsVisible() then
-            self.frame:SetPropagateKeyboardInput(false)
-            self:Glow(QuestFrameAcceptButton)
-            AcceptQuest()
+            self:SetClickbuttonBinding(QuestFrameAcceptButton, key)
             return
-        -- Take Quest Reward
+        -- Take Quest Reward - using manual API
         elseif QuestFrameRewardPanel:IsVisible() then
             self.frame:SetPropagateKeyboardInput(false)
             if self.itemChoice == -1 and GetNumQuestChoices() > 1 then
@@ -533,9 +446,7 @@ function DialogKey:HandleKey(key)
     if self.db.handlePlayerChoice and next(self.playerChoiceButtons) and (doAction or self.db.numKeysForPlayerChoice) then
         local button = self.playerChoiceButtons[keynum]
         if button then
-            self.frame:SetPropagateKeyboardInput(false)
-            self:Glow(button)
-            button:Click()
+            self:SetClickbuttonBinding(button, key)
             return
         end
     end
@@ -548,9 +459,7 @@ function DialogKey:HandleKey(key)
             if doAction and choice and choice.info and choice.info.questID and choice.activeQuestButton and not choice.info.isComplete and self.db.ignoreDisabledButtons then
                 keynum = keynum + 1
             else
-                self.frame:SetPropagateKeyboardInput(false)
-                self:Glow(self.frames[keynum])
-                self.frames[keynum]:Click()
+                self:SetClickbuttonBinding(self.frames[keynum], key)
                 return
             end
         end
@@ -567,9 +476,7 @@ function DialogKey:HandleKey(key)
                     keynum = 1
                 end
             else
-                self.frame:SetPropagateKeyboardInput(false)
-                self:Glow(self.frames[keynum])
-                self.frames[keynum]:Click()
+                self:SetClickbuttonBinding(self.frames[keynum], key)
                 return
             end
         end
@@ -577,9 +484,9 @@ function DialogKey:HandleKey(key)
 
     -- QuestReward Frame (select item)
     if self.db.numKeysForQuestRewards and keynum and keynum <= GetNumQuestChoices() and QuestFrameRewardPanel:IsVisible() then
-        self.frame:SetPropagateKeyboardInput(false)
         self.itemChoice = keynum
-        GetClickFrame("QuestInfoRewardsFrameQuestInfoItem" .. key):Click()
+        self:SetClickbuttonBinding(GetClickFrame("QuestInfoRewardsFrameQuestInfoItem" .. key), key)
+        return
     end
 end
 
@@ -684,10 +591,6 @@ function DialogKey:AddFrame(frameName)
     self.db.customFrames[frameName] = true
     self:Glow(frame, 0.25, true)
     self:print("Added frame:", frameName, ". Remove it again with /dialogkey remove; or in the options UI.")
-    self:CheckCustomFrames()
-    if frame:IsVisible() then
-        self:OnCustomFrameShow(frame)
-    end
 end
 
 function DialogKey:RemoveFrame(frameName)
@@ -706,7 +609,6 @@ function DialogKey:RemoveFrame(frameName)
     self.db.customFrames[frameName] = nil
     self:Glow(frame, 0.25, true)
     self:print("Removed frame:", frameName)
-    self:OnCustomFrameHide(frame)
 end
 
 --- Returns the first clickable frame that has mouse focus
