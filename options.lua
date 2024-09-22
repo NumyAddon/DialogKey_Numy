@@ -27,12 +27,6 @@ ns.defaultOptions = {
 -- Using #info here so that the option toggles/buttons/etc can be placed anywhere in the tree below and correctly update the option above via name matching.
 local function optionSetter(info, val) ns.Core.db[info[#info]] = val end
 local function optionGetter(info) return ns.Core.db[info[#info]] end
-local function refreshPopupBlacklist()
-    for i = 1, 4 do
-        local popup = _G["StaticPopup" .. i]
-        ns.Core:OnPopupShow(popup)
-    end
-end
 
 -- only want this for toggles
 local function wrapName(name)
@@ -269,7 +263,6 @@ Simply add (part of) the text that appears in the popup, and DialogKey will igno
                     width = "full",
                     set = function(_, value)
                         ns.Core.db.dialogBlacklist[value] = true
-                        refreshPopupBlacklist()
                     end,
                 },
                 removeText = {
@@ -291,7 +284,6 @@ Simply add (part of) the text that appears in the popup, and DialogKey will igno
                     get = function(_, _) return false end,
                     set = function(_, index, ...)
                         ns.Core.db.dialogBlacklist[index] = nil
-                        refreshPopupBlacklist()
                     end,
                 },
                 listOfTexts = {
