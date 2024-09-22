@@ -66,8 +66,9 @@ function DialogKey:OnInitialize()
     self:SecureHook(GossipFrame, "Update", "OnGossipFrameUpdate")
 
     -- interfaceOptions defined in `options.lua`
-    LibStub("AceConfig-3.0"):RegisterOptionsTable(name, ns.interfaceOptions)
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions(name)
+    local configPanelName = 'DialogKey - Numy Edition'
+    LibStub("AceConfig-3.0"):RegisterOptionsTable(configPanelName, ns.interfaceOptions)
+    LibStub("AceConfigDialog-3.0"):AddToBlizOptions(configPanelName)
 
     _G.SLASH_DIALOGKEY1 = '/dialogkey'
     _G.SLASH_DIALOGKEY2 = '/dkey'
@@ -79,7 +80,7 @@ function DialogKey:OnInitialize()
         elseif func == 'remove' then
             self:RemoveFrame(args)
         else
-            Settings.OpenToCategory(name)
+            Settings.OpenToCategory(configPanelName)
         end
     end
 end
