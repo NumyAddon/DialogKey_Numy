@@ -42,6 +42,7 @@ function DialogKey:GetFrameByName(frameName)
     return frameTable;
 end
 
+--- @type Button[]
 DialogKey.playerChoiceButtons = {}
 DialogKey.activeOverrideBindings = {}
 
@@ -446,7 +447,7 @@ function DialogKey:HandleKey(key)
     -- Player Choice
     if self.db.handlePlayerChoice and next(self.playerChoiceButtons) and (doAction or self.db.numKeysForPlayerChoice) then
         local button = self.playerChoiceButtons[keynum]
-        if button then
+        if button and (not self.db.ignoreDisabledButtons or button:IsEnabled()) then
             self:SetClickbuttonBinding(button, key)
             return
         end
