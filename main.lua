@@ -49,9 +49,7 @@ DialogKey.activeOverrideBindings = {}
 function DialogKey:OnInitialize()
     DialogKeyNumyDB = DialogKeyNumyDB or {}
     self.db = DialogKeyNumyDB
-    for k, v in pairs(ns.defaultOptions) do
-        if self.db[k] == nil then self.db[k] = v end
-    end
+    ns:InitDB(self)
 
     self:InitGlowFrame()
 
@@ -66,10 +64,7 @@ function DialogKey:OnInitialize()
     self:SecureHook("QuestInfoItem_OnClick", "SelectItemReward")
     self:SecureHook(GossipFrame, "Update", "OnGossipFrameUpdate")
 
-    -- interfaceOptions defined in `options.lua`
-    local configPanelName = 'DialogKey - Numy Edition'
-    LibStub("AceConfig-3.0"):RegisterOptionsTable(configPanelName, ns.interfaceOptions)
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions(configPanelName)
+    ns:RegisterOptions()
 
     _G.SLASH_DIALOGKEY1 = '/dialogkey'
     _G.SLASH_DIALOGKEY2 = '/dkey'
@@ -81,7 +76,7 @@ function DialogKey:OnInitialize()
         elseif func == 'remove' then
             self:RemoveFrame(args)
         else
-            Settings.OpenToCategory(configPanelName)
+            Settings.OpenToCategory(ns.configPanelName)
         end
     end
 end
@@ -225,7 +220,7 @@ end
 
 --- @return Button|nil
 function DialogKey:GetFirstVisibleCustomFrame()
-    for frameName, _ in pairs(self.db.customFrames) do
+    for _, frameName in ipairs(ns.orderedCustomFrames) do
         local frame = self:GetFrameByName(frameName)
         if frame and frame:IsVisible() and frame:IsObjectType('Button') and self:GuardDisabled(frame) then
             return frame ---@diagnostic disable-line: return-type-mismatch
@@ -553,6 +548,9 @@ function DialogKey:EnumerateGossips(isGossipFrame)
 end
 
 -- Glow Functions --
+--- @param frame Frame
+--- @param speedModifier number # increasing this number will speed up the fade out of the glow
+--- @param forceShow boolean # if true, the glow will be shown regardless of the showGlow setting
 function DialogKey:Glow(frame, speedModifier, forceShow)
     if self.db.showGlow or forceShow then
         self.glowFrame:SetAllPoints(frame)
@@ -590,7 +588,12 @@ function DialogKey:AddFrame(frameName)
         return
     end
 
-    self.db.customFrames[frameName] = true
+    if self.db.customFrames[frameName] then
+        self:print("Frame is already on the watchlist:", frameName)
+        self:Glow(frame, 0.25, true)
+        return
+    end
+    ns:AddToWatchlist(frameName)
     self:Glow(frame, 0.25, true)
     self:print("Added frame:", frameName, ". Remove it again with /dialogkey remove; or in the options UI.")
 end
@@ -607,14 +610,20 @@ function DialogKey:RemoveFrame(frameName)
         self:print("No clickable frame found under your mouse. Try /fstack and find the name of the frame, and remove it manually with /dialogkey remove <frameName>")
         return
     end
+    local index = self.db.customFrames[frameName]
+    if not index then
+        self:print("The clickable frame under your mouse isn't on the custom watchlist:", frameName)
+        self:Glow(frame, 0.25, true)
+        return
+    end
 
-    self.db.customFrames[frameName] = nil
+    ns:RemoveFromWatchlist(frameName)
     self:Glow(frame, 0.25, true)
     self:print("Removed frame:", frameName)
 end
 
 --- Returns the first clickable frame that has mouse focus
---- @return ScriptRegion?, string? # The frame under the cursor, and its name; or nil
+--- @return Frame?, string? # The frame under the cursor, and its name; or nil
 function DialogKey:GetFrameUnderCursor()
     for _, frame in ipairs(GetMouseFoci()) do
         if
