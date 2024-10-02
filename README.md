@@ -1,9 +1,9 @@
 ### DialogKey - Numy Edition
-There have been various different versions of DialogKey, sadly the [original version by Foxthorn](https://www.curseforge.com/wow/addons/dialogkey) hasn't been updated since the beginning of Shadowlands. This version is loosely a continuation from [ItsNoich's updated version](https://www.curseforge.com/wow/addons/dialogkey-df), with a few improvements, rewrites, and additions.
+There have been various different versions of DialogKey, sadly the [original version by Foxthorn](https://www.curseforge.com/wow/addons/dialogkey) hasn't been updated since the beginning of Shadowlands. This version is loosely a continuation from [ItsNoich's DF fork](https://www.curseforge.com/wow/addons/dialogkey-df), with a large number of improvements, rewrites, and additions.
 
 Our versions are _not_ compatible with eachother, and should not be enabled at the same time; but all your settings will remain intact and untouched.
 
-The original versions can be found here:
+Previous versions can be found here:
 - https://www.curseforge.com/wow/addons/dialogkey
 - https://github.com/N0ich/dialogkey-DF
 - https://github.com/TonyRaccoon/wow-dialogkey
@@ -11,7 +11,7 @@ The original versions can be found here:
 
 **DialogKey** is an AddOn designed to make handling dialogs and quest frames less of a hassle by allowing you to use the keyboard to control them. View the settings by typing **/dialogkey**, **/dkey**, or **/dk**
 
-**Note:** Due to restrictions from undefinedBlizzard, this addon will not function during combat; once you drop combat you will once more be able to spam spacebar to skip conversations to your heart's content :)
+**Note:** Due to restrictions from Blizzard, this addon will not function during combat; once you drop combat you will once more be able to spam spacebar to skip conversations to your heart's content :)
 
 It has two primary functions:
 
