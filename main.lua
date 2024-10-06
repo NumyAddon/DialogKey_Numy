@@ -326,7 +326,7 @@ function DialogKey:GetPopupButton(popupFrame)
         end
     end
 
-    return popupFrame.button1
+    return popupFrame.button1:IsVisible() and popupFrame.button1
 end
 
 -- Clears all override bindings associated with an owner, clears all override bindings if no owner is passed
