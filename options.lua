@@ -2,14 +2,18 @@
 local ns = select(2, ...)
 
 ns.configPanelName = 'DialogKey - Numy Edition'
+--- @class DialogKeyDB
 ns.defaultOptions = {
+    --- @type string[]
     keys = {
         "SPACE",
     },
     ignoreDisabledButtons = false,
     ignoreWithModifier = false,
     showGlow = true,
+    --- @type table<string, boolean> # [text] = true
     dialogBlacklist = {},
+    --- @type table<string, number> # [frameName] = priority
     customFrames = {},
     numKeysForGossip = true,
     numKeysForQuestRewards = true,
@@ -23,6 +27,7 @@ ns.defaultOptions = {
     handlePlayerChoice = true,
     numKeysForPlayerChoice = true,
     postAuctions = false,
+    ignoreInProgressQuests = true,
 }
 
 --- @param dialogKey DialogKey
@@ -222,6 +227,12 @@ function ns:GetOptionsTable()
                         order = increment(),
                         name = wrapName("Ignore Disabled Buttons"),
                         desc = "Don't allow DialogKey to click on disabled (greyed out) buttons",
+                        descStyle = "inline", width = "full", type = "toggle",
+                    },
+                    ignoreInProgressQuests = {
+                        order = increment(),
+                        name = wrapName("Ignore In-Progress Quests"),
+                        desc = "Gossip options for in-progress quests are ignored, and only completed or unaccepted quests are clicked",
                         descStyle = "inline", width = "full", type = "toggle",
                     },
                     numKeysForGossip = {

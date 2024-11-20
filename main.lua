@@ -48,6 +48,7 @@ DialogKey.activeOverrideBindings = {}
 
 function DialogKey:OnInitialize()
     DialogKeyNumyDB = DialogKeyNumyDB or {}
+    --- @type DialogKeyDB
     self.db = DialogKeyNumyDB
     ns:InitDB(self)
 
@@ -184,9 +185,11 @@ function DialogKey:OnGossipFrameUpdate(gossipFrame)
     for _, frame in scrollbox:EnumerateFrames() do
         local data = frame.GetElementData and frame:GetElementData()
         local tag
-        if data.buttonType == GOSSIP_BUTTON_TYPE_OPTION then
+        if GOSSIP_BUTTON_TYPE_OPTION == data.buttonType then
             tag = "name"
-        elseif data.buttonType == GOSSIP_BUTTON_TYPE_ACTIVE_QUEST or data.buttonType == GOSSIP_BUTTON_TYPE_AVAILABLE_QUEST then
+        elseif GOSSIP_BUTTON_TYPE_AVAILABLE_QUEST == data.buttonType then
+            tag = "title"
+        elseif GOSSIP_BUTTON_TYPE_ACTIVE_QUEST == data.buttonType and (data.info.isComplete or not self.db.ignoreInProgressQuests) then
             tag = "title"
         end
         if tag then
