@@ -54,7 +54,6 @@ function DialogKey:OnInitialize()
 
     self:InitGlowFrame()
 
-    self:RegisterEvent("GOSSIP_SHOW")
     self:RegisterEvent("QUEST_GREETING")
     self:RegisterEvent("QUEST_COMPLETE")
     self:RegisterEvent("PLAYER_REGEN_DISABLED")
