@@ -93,12 +93,8 @@ function DialogKey:QUEST_COMPLETE()
     self.itemChoice = (GetNumQuestChoices() > 1 and -1 or 1)
 end
 
-function DialogKey:GOSSIP_SHOW()
-    RunNextFrame(function() self:EnumerateGossips(true) end)
-end
-
 function DialogKey:QUEST_GREETING()
-    RunNextFrame(function() self:EnumerateGossips(false) end)
+    RunNextFrame(function() self:EnumerateGossips() end)
 end
 
 function DialogKey:PLAYER_REGEN_DISABLED()
@@ -175,12 +171,11 @@ function DialogKey:OnPlayerChoiceHide()
     self.playerChoiceButtons = {}
 end
 
--- Prefix list of GossipFrame options with 1., 2., 3. etc.
 --- @param gossipFrame GossipFrame
 function DialogKey:OnGossipFrameUpdate(gossipFrame)
-    if not self.db.numKeysForGossip then return end
     local scrollbox = gossipFrame.GreetingPanel.ScrollBox
 
+    self.frames = {};
     local n = 1
     for _, frame in scrollbox:EnumerateFrames() do
         local data = frame.GetElementData and frame:GetElementData()
@@ -193,8 +188,11 @@ function DialogKey:OnGossipFrameUpdate(gossipFrame)
             tag = "title"
         end
         if tag then
-            frame:SetText((n % 10) .. ". " .. data.info[tag])
-            frame:SetHeight(frame:GetFontString():GetHeight() + 2)
+            if self.db.numKeysForGossip then
+                frame:SetText((n % 10) .. ". " .. data.info[tag])
+                frame:SetHeight(frame:GetFontString():GetHeight() + 2)
+            end
+            self.frames[n] = frame
             n = n + 1
         end
         if n > 10 then break end
@@ -501,34 +499,30 @@ function DialogKey:SelectItemReward()
     end
 end
 
--- Prefix list of QuestGreetingFrame(!!) options with 1., 2., 3. etc.
+-- Prefix list of QuestGreetingFrame options with 1., 2., 3. etc.
 -- Also builds DialogKey.frames, used to click said options
-function DialogKey:EnumerateGossips(isGossipFrame)
-    if not ( QuestFrameGreetingPanel:IsVisible() or GossipFrame.GreetingPanel:IsVisible() ) then return end
+function DialogKey:EnumerateGossips()
+    if not QuestFrameGreetingPanel:IsVisible() then return end
 
     self.frames = {}
-    if isGossipFrame then
-        for _, child in pairs{ GossipFrame.GreetingPanel.ScrollBox.ScrollTarget:GetChildren() } do
+    if QuestFrameGreetingPanel and QuestFrameGreetingPanel.titleButtonPool then
+        --- @type FramePool<Button, QuestTitleButtonTemplate>
+        local pool = QuestFrameGreetingPanel.titleButtonPool;
+        for tab in (pool.EnumerateActive()) do
+            if tab:GetObjectType() == "Button" then
+                table.insert(self.frames, tab)
+            end
+        end
+    elseif QuestFrameGreetingPanel and not QuestFrameGreetingPanel.titleButtonPool then
+        --- @type ScriptRegion[]
+        local children = { QuestGreetingScrollChildFrame:GetChildren() };
+        for _, child in ipairs(children) do
             if child:GetObjectType() == "Button" and child:IsVisible() then
                 table.insert(self.frames, child)
             end
         end
     else
-        if QuestFrameGreetingPanel and QuestFrameGreetingPanel.titleButtonPool then
-            for tab in QuestFrameGreetingPanel.titleButtonPool:EnumerateActive() do
-                if tab:GetObjectType() == "Button" then
-                    table.insert(self.frames, tab)
-                end
-            end
-        elseif QuestFrameGreetingPanel and not QuestFrameGreetingPanel.titleButtonPool then
-            for _, child in ipairs({ QuestGreetingScrollChildFrame:GetChildren() }) do
-                if child:GetObjectType() == "Button" and child:IsVisible() then
-                    table.insert(self.frames, child)
-                end
-            end
-        else
-            return
-        end
+        return
     end
 
     table.sort(self.frames, function(a,b)
@@ -539,7 +533,7 @@ function DialogKey:EnumerateGossips(isGossipFrame)
         end
     end)
 
-    if self.db.numKeysForGossip and not isGossipFrame then
+    if self.db.numKeysForGossip then
         for i, frame in ipairs(self.frames) do
             if i > 10 then break end
             frame:SetText((i % 10) .. ". " .. frame:GetText())
