@@ -507,7 +507,7 @@ function DialogKey:EnumerateGossips()
     if QuestFrameGreetingPanel and QuestFrameGreetingPanel.titleButtonPool then
         --- @type FramePool<Button, QuestTitleButtonTemplate>
         local pool = QuestFrameGreetingPanel.titleButtonPool;
-        for tab in (pool.EnumerateActive()) do
+        for tab in (pool:EnumerateActive()) do
             if tab:GetObjectType() == "Button" then
                 table.insert(self.frames, tab)
             end
