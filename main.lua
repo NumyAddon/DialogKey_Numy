@@ -362,8 +362,10 @@ end
 
 function DialogKey:SetClickbuttonBinding(frame, key)
     if InCombatLockdown() then return end
+    self.globalCooldown = true
     self.frame:SetAttribute("clickbutton", frame)
     self:SetOverrideBindings(self.frame, self.frame:GetName(), {key})
+    RunNextFrame(function() self.globalCooldown = false end)
 
     -- just in case something goes horribly wrong, we do NOT want to get the user stuck in a situation where the keyboard stops working
     RunNextFrame(function() self:ClearOverrideBindings(self.frame) end)
@@ -371,6 +373,7 @@ end
 
 function DialogKey:HandleKey(key)
     if not InCombatLockdown() then self.frame:SetPropagateKeyboardInput(true) end
+    if self.globalCooldown then return end
     local doAction = (key == self.db.keys[1] or key == self.db.keys[2])
     local keynum = doAction and 1 or tonumber(key)
     if key == "0" then
