@@ -55,6 +55,7 @@ function DialogKey:OnInitialize()
     self:InitGlowFrame()
 
     self:RegisterEvent("QUEST_GREETING")
+    self:RegisterEvent("QUEST_LOG_UPDATE")
     self:RegisterEvent("QUEST_COMPLETE")
     self:RegisterEvent("PLAYER_REGEN_DISABLED")
     self:RegisterEvent("ADDON_LOADED")
@@ -93,6 +94,10 @@ function DialogKey:QUEST_COMPLETE()
 end
 
 function DialogKey:QUEST_GREETING()
+    RunNextFrame(function() self:EnumerateGossips() end)
+end
+
+function DialogKey:QUEST_LOG_UPDATE()
     RunNextFrame(function() self:EnumerateGossips() end)
 end
 
@@ -503,10 +508,26 @@ end
 function DialogKey:EnumerateGossips()
     if not QuestFrameGreetingPanel:IsVisible() then return end
 
+    local checkQuestsToHandle = false
+    local questsToHandle = {}
+
+    if self.db.ignoreInProgressQuests then
+        checkQuestsToHandle = true
+        local numActiveQuests = GetNumActiveQuests()
+        local numAvailableQuests = GetNumAvailableQuests()
+        for i = 1, numActiveQuests do
+            local _, isComplete = GetActiveTitle(i)
+            questsToHandle[i] = isComplete
+        end
+        for i = (numActiveQuests + 1), (numActiveQuests + numAvailableQuests) do
+            questsToHandle[i] = true
+        end
+    end
+
     self.frames = {}
     if QuestFrameGreetingPanel and QuestFrameGreetingPanel.titleButtonPool then
         --- @type FramePool<Button, QuestTitleButtonTemplate>
-        local pool = QuestFrameGreetingPanel.titleButtonPool;
+        local pool = QuestFrameGreetingPanel.titleButtonPool
         for tab in (pool:EnumerateActive()) do
             if tab:GetObjectType() == "Button" then
                 table.insert(self.frames, tab)
@@ -514,7 +535,7 @@ function DialogKey:EnumerateGossips()
         end
     elseif QuestFrameGreetingPanel and not QuestFrameGreetingPanel.titleButtonPool then
         --- @type ScriptRegion[]
-        local children = { QuestGreetingScrollChildFrame:GetChildren() };
+        local children = { QuestGreetingScrollChildFrame:GetChildren() }
         for _, child in ipairs(children) do
             if child:GetObjectType() == "Button" and child:IsVisible() then
                 table.insert(self.frames, child)
@@ -533,12 +554,16 @@ function DialogKey:EnumerateGossips()
     end)
 
     if self.db.numKeysForGossip then
+        local n = 1
         for i, frame in ipairs(self.frames) do
-            if i > 10 then break end
-            frame:SetText((i % 10) .. ". " .. frame:GetText())
+            if not checkQuestsToHandle or questsToHandle[i] then
+                if n > 10 then break end
+                frame:SetText((n % 10) .. ". " .. frame:GetText())
 
-            -- Make the button taller if the text inside is wrapped to multiple lines
-            frame:SetHeight(frame:GetFontString():GetHeight() + 2)
+                -- Make the button taller if the text inside is wrapped to multiple lines
+                frame:SetHeight(frame:GetFontString():GetHeight() + 2)
+                n = n + 1
+            end
         end
     end
 end
