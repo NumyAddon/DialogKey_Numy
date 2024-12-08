@@ -175,9 +175,9 @@ function DialogKey:OnPlayerChoiceHide()
     self.playerChoiceButtons = {}
 end
 
---- @param gossipFrame GossipFrame
-function DialogKey:OnGossipFrameUpdate(gossipFrame)
-    local scrollbox = gossipFrame.GreetingPanel.ScrollBox
+--- @param GossipFrame GossipFrame
+function DialogKey:OnGossipFrameUpdate(GossipFrame)
+    local scrollbox = GossipFrame.GreetingPanel.ScrollBox
 
     self.frames = {};
     local n = 1
@@ -193,7 +193,11 @@ function DialogKey:OnGossipFrameUpdate(gossipFrame)
         end
         if tag then
             if self.db.numKeysForGossip then
-                frame:SetText((n % 10) .. ". " .. data.info[tag])
+                local newText = (n % 10) .. ". " .. data.info[tag]
+                if self.db.riskyNumKeysForGossip then
+                    data.info[tag] = newText -- this may not be safe, but it looks like the only somewhat reliable way to ensure the scrollbar is enabled when needed
+                end
+                frame:SetText(newText)
                 frame:SetHeight(frame:GetFontString():GetHeight() + 2)
             end
             self.frames[n] = frame
@@ -201,9 +205,12 @@ function DialogKey:OnGossipFrameUpdate(gossipFrame)
         end
         if n > 10 then break end
     end
-    local oldScale = scrollbox:GetScale()
-    scrollbox:SetScale(oldScale + 0.002) -- trigger OnSizeChanged
-    RunNextFrame(function() scrollbox:SetScale(oldScale) end) -- OnSizeChanged only fires if the size actually changed at the end of the frame
+    --- @type ScrollBoxListLinearViewMixin
+    local view = scrollbox:GetView()
+    view:Layout()
+    if self.db.riskyNumKeysForGossip then
+        scrollbox:ScrollIncrease() -- force the scrollbar to show if needed
+    end
 end
 
 --- @return StaticPopupTemplate|nil
@@ -211,7 +218,7 @@ function DialogKey:GetFirstVisiblePopup()
     for i = 1, 4 do
         local popup = _G["StaticPopup"..i]
         if popup and popup:IsVisible() then
-            return popup
+            table.insert(popupFrames, popup)
         end
     end
 end
