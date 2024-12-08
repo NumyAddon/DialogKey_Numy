@@ -213,76 +213,26 @@ function DialogKey:OnGossipFrameUpdate(GossipFrame)
     end
 end
 
---- @return StaticPopupTemplate|nil
-function DialogKey:GetFirstVisiblePopup()
+--- @return Button[]|nil
+function DialogKey:GetValidPopupButtons()
+    local buttons = {}
+    local popupFrames = {}
     for i = 1, 4 do
         local popup = _G["StaticPopup"..i]
         if popup and popup:IsVisible() then
             table.insert(popupFrames, popup)
         end
     end
-end
-
---- @param frame Button
-function DialogKey:GuardDisabled(frame)
-    if not self.db.ignoreDisabledButtons then return true; end
-
-    return frame:IsEnabled() and frame:IsMouseClickEnabled();
-end
-
---- @return Button|nil
-function DialogKey:GetFirstVisibleCustomFrame()
-    for _, frameName in ipairs(ns.orderedCustomFrames) do
-        local frame = self:GetFrameByName(frameName)
-        if frame and frame:IsVisible() and frame:IsObjectType('Button') and self:GuardDisabled(frame) then
-            return frame ---@diagnostic disable-line: return-type-mismatch
+    table.sort(popupFrames, function(a, b) return a:GetTop() > b:GetTop() end)
+    for _, popupFrame in ipairs(popupFrames) do
+        local button = self:GetPopupButton(popupFrame)
+        if button then
+            table.insert(buttons, button)
         end
     end
+
+    return next(buttons) and buttons or nil
 end
-
---- @return Button|nil
-function DialogKey:GetFirstVisibleCraftingOrderFrame()
-    if not self.db.handleCraftingOrders then return; end
-    local frames = {
-        "ProfessionsFrame.OrdersPage.OrderView.OrderInfo.StartOrderButton",
-        "ProfessionsFrame.OrdersPage.OrderView.CreateButton",
-        "ProfessionsFrame.OrdersPage.OrderView.CompleteOrderButton",
-    };
-    for _, frameName in ipairs(frames) do
-        --- @type Button?
-        local frame = self:GetFrameByName(frameName) ---@diagnostic disable-line: assign-type-mismatch
-        if frame and frame:IsVisible() and self:GuardDisabled(frame) then
-            return frame
-        end
-    end
-end
-
-function DialogKey:ShouldIgnoreInput()
-    if InCombatLockdown() then return true end
-
-    if self.db.ignoreWithModifier and (IsShiftKeyDown() or IsControlKeyDown() or IsAltKeyDown()) then return true end
-    -- Ignore input while typing, unless at the Send Mail confirmation while typing into it!
-    local focus = GetCurrentKeyBoardFocus()
-    if focus and not (self:GetFirstVisiblePopup() and (focus:GetName() == "SendMailNameEditBox" or focus:GetName() == "SendMailSubjectEditBox")) then return true end
-
-    if
-        -- Ignore input if there's nothing for DialogKey to click
-        not GossipFrame:IsVisible() and not QuestFrame:IsVisible() and not self:GetFirstVisiblePopup()
-        -- Ignore input if the Auction House sell frame is not open
-        and (not AuctionHouseFrame or not AuctionHouseFrame:IsVisible())
-        and not self:GetFirstVisibleCraftingOrderFrame()
-        -- Ignore input if no custom frames are visible
-        and not self:GetFirstVisibleCustomFrame()
-        -- Ignore input if no player choice buttons are visible
-        and not next(self.playerChoiceButtons)
-    then
-        return true
-    end
-
-    return false
-end
-
--- Primary functions --
 
 -- Takes a global string like '%s has challenged you to a duel.' and converts it to a format suitable for string.find
 local summon_match = CONFIRM_SUMMON:gsub("%%d", ".+"):format(".+", ".+", ".+")
@@ -338,7 +288,66 @@ function DialogKey:GetPopupButton(popupFrame)
         end
     end
 
-    return popupFrame.button1:IsVisible() and popupFrame.button1
+    return popupFrame.button1:IsVisible() and popupFrame.button1 or nil
+end
+
+--- @param frame Button
+function DialogKey:GuardDisabled(frame)
+    if not self.db.ignoreDisabledButtons then return true; end
+
+    return frame:IsEnabled() and frame:IsMouseClickEnabled();
+end
+
+--- @return Button|nil
+function DialogKey:GetFirstVisibleCustomFrame()
+    for _, frameName in ipairs(ns.orderedCustomFrames) do
+        local frame = self:GetFrameByName(frameName)
+        if frame and frame:IsVisible() and frame:IsObjectType('Button') and self:GuardDisabled(frame) then
+            return frame ---@diagnostic disable-line: return-type-mismatch
+        end
+    end
+end
+
+--- @return Button|nil
+function DialogKey:GetFirstVisibleCraftingOrderFrame()
+    if not self.db.handleCraftingOrders then return; end
+    local frames = {
+        "ProfessionsFrame.OrdersPage.OrderView.OrderInfo.StartOrderButton",
+        "ProfessionsFrame.OrdersPage.OrderView.CreateButton",
+        "ProfessionsFrame.OrdersPage.OrderView.CompleteOrderButton",
+    };
+    for _, frameName in ipairs(frames) do
+        --- @type Button?
+        local frame = self:GetFrameByName(frameName) ---@diagnostic disable-line: assign-type-mismatch
+        if frame and frame:IsVisible() and self:GuardDisabled(frame) then
+            return frame
+        end
+    end
+end
+
+function DialogKey:ShouldIgnoreInput()
+    if InCombatLockdown() then return true end
+
+    if self.db.ignoreWithModifier and (IsShiftKeyDown() or IsControlKeyDown() or IsAltKeyDown()) then return true end
+    -- Ignore input while typing, unless at the Send Mail confirmation while typing into it!
+    local focus = GetCurrentKeyBoardFocus()
+    if focus and not (self:GetValidPopupButtons() and (focus:GetName() == "SendMailNameEditBox" or focus:GetName() == "SendMailSubjectEditBox")) then return true end
+
+    if
+        -- Ignore input if there's nothing for DialogKey to click
+        not GossipFrame:IsVisible() and not QuestFrame:IsVisible() and not self:GetValidPopupButtons()
+        -- Ignore input if the Auction House sell frame is not open
+        and (not AuctionHouseFrame or not AuctionHouseFrame:IsVisible())
+        and not self:GetFirstVisibleCraftingOrderFrame()
+        -- Ignore input if no custom frames are visible
+        and not self:GetFirstVisibleCustomFrame()
+        -- Ignore input if no player choice buttons are visible
+        and not next(self.playerChoiceButtons)
+    then
+        return true
+    end
+
+    return false
 end
 
 -- Clears all override bindings associated with an owner, clears all override bindings if no owner is passed
@@ -393,10 +402,10 @@ function DialogKey:HandleKey(key)
     -- DialogKey pressed, interact with popups, accepts..
     if doAction then
         -- Popups
-        local popupFrame = self:GetFirstVisiblePopup()
-        local popupButton = popupFrame and self:GetPopupButton(popupFrame)
-        if popupButton then
-            self:SetClickbuttonBinding(popupButton, key)
+        local popupButtons = self:GetValidPopupButtons()
+        if popupButtons then
+            -- todo: set a binding for each popup button?
+            self:SetClickbuttonBinding(popupButtons[1], key)
             return
         end
 
