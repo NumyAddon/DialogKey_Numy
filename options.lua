@@ -441,6 +441,9 @@ function ns:CreateCustomFramesPriorityListOptions(order, swapWatchlistFrames)
 
         return options;
     end
+    local numberOfIcons = 4;
+    local iconWidth = 26;
+    local groupWidth = 405; -- depends on whether there's a scrollbar
     for i, frame in ipairs(self.orderedCustomFrames) do
         options.args["glow" .. i] = {
             order = increment(),
@@ -459,14 +462,14 @@ function ns:CreateCustomFramesPriorityListOptions(order, swapWatchlistFrames)
             imageCoords = {
                 search.leftTexCoord, search.rightTexCoord, search.topTexCoord, search.bottomTexCoord,
             },
-            width = 26 / width_multiplier,
+            width = iconWidth / width_multiplier,
         };
         options.args["name" .. i] = {
             order = increment(),
             name = frame,
             type = "description",
             fontSize = "medium",
-            width = (400 - 30 * 3) / width_multiplier,
+            width = (groupWidth - iconWidth * numberOfIcons) / width_multiplier,
         };
         options.args["up" .. i] = {
             order = increment(),
@@ -486,7 +489,7 @@ function ns:CreateCustomFramesPriorityListOptions(order, swapWatchlistFrames)
                 arrowBack.leftTexCoord, arrowBack.topTexCoord, -- UR
                 arrowBack.rightTexCoord, arrowBack.topTexCoord, -- LR
             },
-            width = 26 / width_multiplier,
+            width = iconWidth / width_multiplier,
         };
         options.args["down" .. i] = {
             order = increment(),
@@ -500,7 +503,7 @@ function ns:CreateCustomFramesPriorityListOptions(order, swapWatchlistFrames)
             image = arrowNext.file,
             imageWidth = 16,
             imageHeight = 16,
-            width = 26 / width_multiplier,
+            width = iconWidth / width_multiplier,
             imageCoords = {
                 arrowNext.leftTexCoord, arrowNext.bottomTexCoord, -- UL
                 arrowNext.rightTexCoord, arrowNext.bottomTexCoord, -- LL
@@ -522,7 +525,13 @@ function ns:CreateCustomFramesPriorityListOptions(order, swapWatchlistFrames)
             imageCoords = {
                 cross.leftTexCoord, cross.rightTexCoord, cross.topTexCoord, cross.bottomTexCoord,
             },
-            width = 26 / width_multiplier,
+            width = iconWidth / width_multiplier,
+        };
+        options.args["spacer" .. i] = {
+            order = increment(),
+            name = "",
+            type = "description",
+            width = "full",
         };
     end
 
