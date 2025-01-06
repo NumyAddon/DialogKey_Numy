@@ -193,7 +193,8 @@ function DialogKey:OnGossipFrameUpdate(GossipFrame)
         end
         if tag then
             if self.db.numKeysForGossip then
-                local newText = (n % 10) .. ". " .. data.info[tag]
+                local oldText = data.info[tag]
+                local newText = (n % 10) .. ". " .. (oldText:match("^%d. (.+)$") or oldText)
                 if self.db.riskyNumKeysForGossip then
                     data.info[tag] = newText -- this may not be safe, but it looks like the only somewhat reliable way to ensure the scrollbar is enabled when needed
                 end
@@ -574,7 +575,9 @@ function DialogKey:EnumerateGossips()
         for i, frame in ipairs(self.frames) do
             if not checkQuestsToHandle or questsToHandle[i] then
                 if n > 10 then break end
-                frame:SetText((n % 10) .. ". " .. frame:GetText())
+                local oldText = frame:GetText()
+                local newText = (n % 10) .. ". " .. (oldText:match("^%d. (.+)$") or oldText)
+                frame:SetText(newText)
 
                 -- Make the button taller if the text inside is wrapped to multiple lines
                 frame:SetHeight(frame:GetFontString():GetHeight() + 2)
