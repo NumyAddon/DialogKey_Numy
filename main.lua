@@ -541,13 +541,14 @@ function DialogKey:EnumerateGossips()
         end
     end
 
+    local frames = {}
     self.frames = {}
     if QuestFrameGreetingPanel and QuestFrameGreetingPanel.titleButtonPool then
         --- @type FramePool<Button, QuestTitleButtonTemplate>
         local pool = QuestFrameGreetingPanel.titleButtonPool
         for tab in (pool:EnumerateActive()) do
             if tab:GetObjectType() == "Button" then
-                table.insert(self.frames, tab)
+                table.insert(frames, tab)
             end
         end
     elseif QuestFrameGreetingPanel and not QuestFrameGreetingPanel.titleButtonPool then
@@ -555,14 +556,14 @@ function DialogKey:EnumerateGossips()
         local children = { QuestGreetingScrollChildFrame:GetChildren() }
         for _, child in ipairs(children) do
             if child:GetObjectType() == "Button" and child:IsVisible() then
-                table.insert(self.frames, child)
+                table.insert(frames, child)
             end
         end
     else
         return
     end
 
-    table.sort(self.frames, function(a,b)
+    table.sort(frames, function(a,b)
         if a.GetOrderIndex then
             return a:GetOrderIndex() < b:GetOrderIndex()
         else
@@ -572,7 +573,7 @@ function DialogKey:EnumerateGossips()
 
     if self.db.numKeysForGossip then
         local n = 1
-        for i, frame in ipairs(self.frames) do
+        for i, frame in ipairs(frames) do
             if not checkQuestsToHandle or questsToHandle[i] then
                 if n > 10 then break end
                 local oldText = frame:GetText()
@@ -583,6 +584,11 @@ function DialogKey:EnumerateGossips()
                 frame:SetHeight(frame:GetFontString():GetHeight() + 2)
                 n = n + 1
             end
+        end
+    end
+    for i, frame in ipairs(frames) do
+        if not checkQuestsToHandle or questsToHandle[i] then
+            table.insert(self.frames, frame)
         end
     end
 end
