@@ -161,12 +161,23 @@ function DialogKey:OnPlayerChoiceShow()
     end
 
     for option in frame.optionPools:EnumerateActive() do
-        for button in option.buttons.buttonPool:EnumerateActive() do
-            local key = buttons[button.buttonID]
-            if self.db.numKeysForPlayerChoice then
-                button.Text:SetText(key .. ' ' .. button.Text:GetText())
+        if option.buttons.buttonFramePool then -- 11.1.0
+            for buttonFrame in option.buttons.buttonFramePool:EnumerateActive() do
+                local button = buttonFrame.Button
+                local key = buttons[button.buttonID]
+                if self.db.numKeysForPlayerChoice then
+                    button.Text:SetText(key .. ' ' .. button.Text:GetText())
+                end
+                self.playerChoiceButtons[key] = button
             end
-            self.playerChoiceButtons[key] = button
+        else -- 11.0.7
+            for button in option.buttons.buttonPool:EnumerateActive() do
+                local key = buttons[button.buttonID]
+                if self.db.numKeysForPlayerChoice then
+                    button.Text:SetText(key .. ' ' .. button.Text:GetText())
+                end
+                self.playerChoiceButtons[key] = button
+            end
         end
     end
 end
