@@ -7,4 +7,5 @@ https://raw.githubusercontent.com/Meorawr/wow-ui-schema/main/UI.xsd">
     <Include file="libs\AceGUI-3.0\AceGUI-3.0.xml"/>
     <Include file="libs\AceConfig-3.0\AceConfig-3.0.xml"/>
     <Include file="libs\AceHook-3.0\AceHook-3.0.xml"/>
+    <Include file="libs\LibVersionCheck-1.0\LibVersionCheck-1.0.xml"/>
 </Ui>

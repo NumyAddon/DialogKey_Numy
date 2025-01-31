@@ -12,6 +12,17 @@
 ## SavedVariables: DialogKeyNumyDB
 ## X-Curse-Project-ID: 1098587
 ## X-Wago-ID: BKpqVyGE
+## Category-enUS: User Interface
+## Category-deDE: Benutzerinterface
+## Category-esES: Interfaz de usuario
+## Category-esMX: Interfaz de usuario
+## Category-frFR: Interface utilisateur
+## Category-itIT: Interfaccia utente
+## Category-koKR: 사용자 인터페이스
+## Category-ptBR: Interface do usuário
+## Category-ruRU: Интерфейс пользователя
+## Category-zhCN: 用户界面
+## Category-zhTW: 使用者介面
 
 embeds.xml
 options.lua
