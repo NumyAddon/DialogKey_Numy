@@ -23,6 +23,7 @@ ns.defaultOptions = {
     dontClickRevives = true,
     dontClickReleases = true,
     dontAcceptInvite = true,
+    dontAcceptInstanceLocks = false,
     useSoulstoneRez = true,
     handleCraftingOrders = true,
     handlePlayerChoice = true,
@@ -332,6 +333,12 @@ If you have trouble finding the name, try "/fstack", pressing ALT until the fram
                         order = increment(),
                         name = wrapName("Don't Accept Group Invites"),
                         desc = "Don't allow DialogKey to accept Raid/Party Invitations",
+                        descStyle = "inline", width = "full", type = "toggle",
+                    },
+                    dontAcceptInstanceLocks = {
+                        order = increment(),
+                        name = wrapName("Don't Accept Instance Lockouts"),
+                        desc = "Don't allow DialogKey to accept/\"save\" Instance Lockouts",
                         descStyle = "inline", width = "full", type = "toggle",
                     },
                     dontClickSummons = {

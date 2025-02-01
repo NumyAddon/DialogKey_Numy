@@ -247,10 +247,16 @@ function DialogKey:GetValidPopupButtons()
 end
 
 -- Takes a global string like '%s has challenged you to a duel.' and converts it to a format suitable for string.find
-local summon_match = CONFIRM_SUMMON:gsub("%%d", ".+"):format(".+", ".+", ".+")
-local duel_match = DUEL_REQUESTED:format(".+")
-local resurrect_match = RESURRECT_REQUEST_NO_SICKNESS:format(".+")
-local groupinvite_match = INVITATION:format(".+")
+local summonMatch = CONFIRM_SUMMON:gsub("%%d", ".+"):format(".+", ".+", ".+")
+local duelMatch = DUEL_REQUESTED:format(".+")
+local resurrectMatch = RESURRECT_REQUEST_NO_SICKNESS:format(".+")
+local groupinviteMatch = INVITATION:format(".+")
+local instanceLogMatches = {
+    INSTANCE_LOCK_TIMER:format(".+", ".+"),
+    INSTANCE_LOCK_TIMER_PREVIOUSLY_SAVED:format(".+", ".+"),
+    INSTANCE_LOCK_WARNING:format(".+"),
+    INSTANCE_LOCK_WARNING_PREVIOUSLY_SAVED:format(".+"),
+}
 
 --- @param popupFrame StaticPopupTemplate # One of the StaticPopup1-4 frames
 --- @return Frame|nil|false # The button to click, nil if no button should be clicked, false if the text is empty and should be checked again later
@@ -262,11 +268,16 @@ function DialogKey:GetPopupButton(popupFrame)
     if not text or text == " " or text == "" then return false end
 
     -- Don't accept group invitations if the option is enabled
-    if self.db.dontAcceptInvite and text:find(groupinvite_match) then return end
+    if self.db.dontAcceptInvite and text:find(groupinviteMatch) then return end
 
     -- Don't accept summons/duels/resurrects if the options are enabled
-    if self.db.dontClickSummons and text:find(summon_match) then return end
-    if self.db.dontClickDuels and text:find(duel_match) then return end
+    if self.db.dontClickSummons and text:find(summonMatch) then return end
+    if self.db.dontClickDuels and text:find(duelMatch) then return end
+    if self.db.dontAcceptInstanceLocks then
+        for _, match in pairs(instanceLogMatches) do
+            if text:find(match) then return end
+        end
+    end
 
     -- If resurrect dialog has three buttons, and the option is enabled, use the middle one instead of the first one (soulstone, etc.)
     -- Located before resurrect/release checks/returns so it happens even if you have releases/revives disabled
@@ -279,7 +290,7 @@ function DialogKey:GetPopupButton(popupFrame)
         return popupFrame.button2
     end
 
-    if self.db.dontClickRevives and (text == RECOVER_CORPSE or text:find(resurrect_match)) then return end
+    if self.db.dontClickRevives and (text == RECOVER_CORPSE or text:find(resurrectMatch)) then return end
     if self.db.dontClickReleases and canRelease then return end
 
     -- Ignore blacklisted popup dialogs!
