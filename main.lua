@@ -205,6 +205,9 @@ function DialogKey:OnGossipFrameUpdate(GossipFrame)
         if tag then
             if self.db.numKeysForGossip then
                 local oldText = data.info[tag]
+                if (FlagsUtil.IsSet(data.info.flags, Enum.GossipOptionRecFlags.QuestLabelPrepend)) then
+                    oldText = GOSSIP_QUEST_OPTION_PREPEND:format(oldText);
+                end
                 local newText = (n % 10) .. ". " .. (oldText:match("^%d. (.+)$") or oldText)
                 if self.db.riskyNumKeysForGossip then
                     data.info[tag] = newText -- this may not be safe, but it looks like the only somewhat reliable way to ensure the scrollbar is enabled when needed
