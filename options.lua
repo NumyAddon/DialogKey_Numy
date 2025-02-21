@@ -28,6 +28,7 @@ ns.defaultOptions = {
     handleCraftingOrders = true,
     handlePlayerChoice = true,
     numKeysForPlayerChoice = true,
+    handleSpecFrame = true,
     postAuctions = false,
     ignoreInProgressQuests = true,
 }
@@ -267,12 +268,14 @@ function ns:GetOptionsTable()
                         name = wrapName("Crafting Orders"),
                         desc = "Handle Crafting Orders: Start them, Craft them, Complete them",
                         descStyle = "inline", width = "full", type = "toggle",
+                        hidden = WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE,
                     },
                     handlePlayerChoice = {
                         order = increment(),
                         name = wrapName("Player Choice"),
                         desc = "Use keybinding to select the first Player Choice option",
                         descStyle = "inline", width = "full", type = "toggle",
+                        hidden = not C_AddOns.DoesAddOnExist("Blizzard_PlayerChoiceUI"),
                     },
                     numKeysForPlayerChoice = {
                         order = increment(),
@@ -280,6 +283,14 @@ function ns:GetOptionsTable()
                         desc = "Use the number keys (1 -> 0) to select Player Choices",
                         disabled = function() return not db.handlePlayerChoice end,
                         descStyle = "inline", width = "full", type = "toggle",
+                        hidden = not C_AddOns.DoesAddOnExist("Blizzard_PlayerChoiceUI"),
+                    },
+                    handleSpecFrame = {
+                        order = increment(),
+                        name = wrapName(SPECIALIZATION),
+                        desc = "Use the number keys (1 -> 4) to select a specialization while the specialization tab is open",
+                        descStyle = "inline", width = "full", type = "toggle",
+                        hidden = WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE,
                     },
                 },
             },

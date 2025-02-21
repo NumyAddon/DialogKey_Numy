@@ -44,7 +44,11 @@ end
 
 --- @type Button[]
 DialogKey.playerChoiceButtons = {}
+--- @type Button[]
+DialogKey.specButtons = {}
 DialogKey.activeOverrideBindings = {}
+
+DialogKey.dummyButton = CreateFrame("Button")
 
 function DialogKey:OnInitialize()
     DialogKeyNumyDB = DialogKeyNumyDB or {}
@@ -86,6 +90,9 @@ function DialogKey:ADDON_LOADED(_, addon)
     if addon == 'Blizzard_PlayerChoice' then
         self:SecureHook(PlayerChoiceFrame, "TryShow", "OnPlayerChoiceShow")
         self:SecureHookScript(PlayerChoiceFrame, "OnHide", "OnPlayerChoiceHide")
+    elseif addon == 'Blizzard_PlayerSpells' then
+        self:SecureHookScript(PlayerSpellsFrame.SpecFrame, "OnShow", "OnSpecFrameShow")
+        self:SecureHookScript(PlayerSpellsFrame.SpecFrame, "OnHide", "OnSpecFrameHide")
     end
 end
 
@@ -184,6 +191,24 @@ end
 
 function DialogKey:OnPlayerChoiceHide()
     self.playerChoiceButtons = {}
+end
+
+function DialogKey:OnSpecFrameShow()
+    --- @type FramePool<Frame, ClassSpecContentFrameTemplate>
+    local framePool = PlayerSpellsFrame.SpecFrame.SpecContentFramePool
+
+    self.specButtons = {}
+    for specContentFrame in framePool:EnumerateActive() do
+        --- @type ClassSpecContentFrameTemplate
+        local specContentFrame = specContentFrame
+        self.specButtons[specContentFrame.specIndex] = specContentFrame.ActivateButton
+        local text = self.db.handleSpecFrame and (specContentFrame.specIndex .. ' ' .. TALENT_SPEC_ACTIVATE) or TALENT_SPEC_ACTIVATE
+        specContentFrame.ActivateButton:SetText(text)
+    end
+end
+
+function DialogKey:OnSpecFrameHide()
+    self.specButtons = {}
 end
 
 --- @param GossipFrame GossipFrame
@@ -369,6 +394,8 @@ function DialogKey:ShouldIgnoreInput()
         and not self:GetFirstVisibleCustomFrame()
         -- Ignore input if no player choice buttons are visible
         and not next(self.playerChoiceButtons)
+        -- Ignore input if no spec buttons are visible
+        and not next (self.specButtons)
     then
         return true
     end
@@ -490,6 +517,17 @@ function DialogKey:HandleKey(key)
     if self.db.handlePlayerChoice and next(self.playerChoiceButtons) and (doAction or self.db.numKeysForPlayerChoice) then
         local button = self.playerChoiceButtons[keynum]
         if button and (not self.db.ignoreDisabledButtons or button:IsEnabled()) then
+            self:SetClickbuttonBinding(button, key)
+            return
+        end
+    end
+
+    -- Spec Frame
+    if self.db.handleSpecFrame and next(self.specButtons) then
+        local button = self.specButtons[keynum]
+        if button then
+            -- blocks keybind for currently selected spec index
+            if not button:IsVisible() then button = self.dummyButton end
             self:SetClickbuttonBinding(button, key)
             return
         end
