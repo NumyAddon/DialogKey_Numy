@@ -272,18 +272,17 @@ function ns:GetOptionsTable()
                     },
                     handlePlayerChoice = {
                         order = increment(),
-                        name = wrapName("Player Choice"),
+                        name = wrapName("Keybind for Player Choice"),
                         desc = "Use keybinding to select the first Player Choice option",
                         descStyle = "inline", width = "full", type = "toggle",
-                        hidden = not C_AddOns.DoesAddOnExist("Blizzard_PlayerChoiceUI"),
+                        hidden = not C_AddOns.DoesAddOnExist("Blizzard_PlayerChoice"),
                     },
                     numKeysForPlayerChoice = {
                         order = increment(),
                         name = wrapName("Number keys for Player Choice"),
                         desc = "Use the number keys (1 -> 0) to select Player Choices",
-                        disabled = function() return not db.handlePlayerChoice end,
                         descStyle = "inline", width = "full", type = "toggle",
-                        hidden = not C_AddOns.DoesAddOnExist("Blizzard_PlayerChoiceUI"),
+                        hidden = not C_AddOns.DoesAddOnExist("Blizzard_PlayerChoice"),
                     },
                     handleSpecFrame = {
                         order = increment(),

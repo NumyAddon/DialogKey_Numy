@@ -152,7 +152,7 @@ function DialogKey:InitMainProxyFrame()
 end
 
 function DialogKey:OnPlayerChoiceShow()
-    if not self.db.handlePlayerChoice then return end
+    if not self.db.handlePlayerChoice and not self.db.numKeysForPlayerChoice then return end
     local frame = PlayerChoiceFrame;
     if not frame or not frame:IsVisible() then return end
 
@@ -514,7 +514,10 @@ function DialogKey:HandleKey(key)
     end
 
     -- Player Choice
-    if self.db.handlePlayerChoice and next(self.playerChoiceButtons) and (doAction or self.db.numKeysForPlayerChoice) then
+    if
+        ((self.db.handlePlayerChoice and doAction) or (self.db.numKeysForPlayerChoice and not doAction))
+        and next(self.playerChoiceButtons)
+    then
         local button = self.playerChoiceButtons[keynum]
         if button and (not self.db.ignoreDisabledButtons or button:IsEnabled()) then
             self:SetClickbuttonBinding(button, key)
