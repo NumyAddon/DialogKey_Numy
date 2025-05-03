@@ -101,10 +101,10 @@ function ns:AddToWatchlist(frameName)
     self:RegisterOptions()
 end
 
-local arrowNext = C_Texture.GetAtlasInfo('common-dropdown-icon-next')
-local arrowBack = C_Texture.GetAtlasInfo('common-dropdown-icon-back')
-local cross = C_Texture.GetAtlasInfo('Radial_Wheel_Icon_Close')
-local search = C_Texture.GetAtlasInfo('common-search-magnifyingglass')
+local arrowNext = C_Texture.GetAtlasInfo('common-dropdown-icon-next') or error('Failed to find atlas for Next icon')
+local arrowBack = C_Texture.GetAtlasInfo('common-dropdown-icon-back') or error('Failed to find atlas for Back icon')
+local cross = C_Texture.GetAtlasInfo('Radial_Wheel_Icon_Close') or C_Texture.GetAtlasInfo('XMarksTheSpot') or error('Failed to find atlas for cross icon')
+local search = C_Texture.GetAtlasInfo('common-search-magnifyingglass') or error('Failed to find atlas for Search icon')
 local width_multiplier = 170
 
 -- only want this for toggles
