@@ -2,7 +2,6 @@ local name = ...
 --- @class DialogKeyNS
 local ns = select(2, ...)
 
-local GetMouseFoci = GetMouseFoci or function() return { GetMouseFocus() } end
 local GetFrameMetatable = _G.GetFrameMetatable or function() return getmetatable(CreateFrame('FRAME')) end
 
 _G.DialogKeyNS = ns -- expose ourselves to the world :)
@@ -162,28 +161,24 @@ function DialogKey:OnPlayerChoiceShow()
     local i = 0
     for _, option in ipairs(choiceInfo.options) do
         for _, button in ipairs(option.buttons) do
-            i = i + 1
-            buttons[button.id] = i
+            if not button.hideButtonShowText or not button.text then
+                i = i + 1
+                buttons[button.id] = i
+            end
         end
     end
 
     for option in frame.optionPools:EnumerateActive() do
-        if option.buttons.buttonFramePool then -- 11.1.0
+        if option.buttons.buttonFramePool then
             for buttonFrame in option.buttons.buttonFramePool:EnumerateActive() do
                 local button = buttonFrame.Button
                 local key = buttons[button.buttonID]
-                if self.db.numKeysForPlayerChoice then
-                    button.Text:SetText(key .. ' ' .. button.Text:GetText())
+                if key then
+                    if self.db.numKeysForPlayerChoice then
+                        button.Text:SetText(key .. ' ' .. button.Text:GetText())
+                    end
+                    self.playerChoiceButtons[key] = button
                 end
-                self.playerChoiceButtons[key] = button
-            end
-        else -- 11.0.7
-            for button in option.buttons.buttonPool:EnumerateActive() do
-                local key = buttons[button.buttonID]
-                if self.db.numKeysForPlayerChoice then
-                    button.Text:SetText(key .. ' ' .. button.Text:GetText())
-                end
-                self.playerChoiceButtons[key] = button
             end
         end
     end
@@ -395,7 +390,7 @@ function DialogKey:ShouldIgnoreInput()
         -- Ignore input if no player choice buttons are visible
         and not next(self.playerChoiceButtons)
         -- Ignore input if no spec buttons are visible
-        and not next (self.specButtons)
+        and not next(self.specButtons)
     then
         return true
     end
