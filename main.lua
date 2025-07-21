@@ -410,7 +410,7 @@ function DialogKey:ClearOverrideBindings(owner)
     end
     if not self.activeOverrideBindings[owner] then return end
     for key in pairs(self.activeOverrideBindings[owner]) do
-        SetOverrideBinding(owner, false, key, nil)
+        SetOverrideBinding(owner, true, key, nil)
     end
     self.activeOverrideBindings[owner] = nil
 end
@@ -425,14 +425,14 @@ function DialogKey:SetOverrideBindings(owner, targetName, keys)
     self.activeOverrideBindings[owner] = {}
     for _, key in pairs(keys) do
         self.activeOverrideBindings[owner][key] = owner;
-        SetOverrideBindingClick(owner, false, key, targetName, 'LeftButton');
+        SetOverrideBindingClick(owner, true, key, targetName, 'LeftButton');
     end
 end
 
 function DialogKey:SetClickbuttonBinding(frame, key)
     if InCombatLockdown() then return end
     self.frame:SetAttribute("clickbutton", frame)
-    self:SetOverrideBindings(self.frame, self.frame:GetName(), {key})
+    self:SetOverrideBindings(self.frame, self.frame:GetName(), { key })
 
     -- just in case something goes horribly wrong, we do NOT want to get the user stuck in a situation where the keyboard stops working
     RunNextFrame(function() self:ClearOverrideBindings(self.frame) end)
