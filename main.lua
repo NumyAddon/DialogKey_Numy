@@ -252,10 +252,14 @@ end
 function DialogKey:GetValidPopupButtons()
     local buttons = {}
     local popupFrames = {}
-    for i = 1, 4 do
-        local popup = _G["StaticPopup"..i]
-        if popup and popup:IsVisible() then
-            table.insert(popupFrames, popup)
+    if StaticPopup_ForEachShownDialog then
+        StaticPopup_ForEachShownDialog(function(popup) table.insert(popupFrames, popup) end)
+    else
+        for i = 1, 4 do
+            local popup = _G["StaticPopup" .. i]
+            if popup and popup:IsVisible() then
+                table.insert(popupFrames, popup)
+            end
         end
     end
     table.sort(popupFrames, function(a, b) return a:GetTop() > b:GetTop() end)
@@ -284,7 +288,15 @@ local instanceLogMatches = {
 --- @param popupFrame StaticPopupTemplate # One of the StaticPopup1-4 frames
 --- @return Frame|nil|false # The button to click, nil if no button should be clicked, false if the text is empty and should be checked again later
 function DialogKey:GetPopupButton(popupFrame)
-    local text = popupFrame.text:GetText()
+    local fontString = popupFrame.GetTextFontString and popupFrame:GetTextFontString() or popupFrame.text
+    local text = fontString:GetText()
+    local button1, button2
+    if popupFrame.GetButtons then
+        button1, button2 = unpack(popupFrame:GetButtons())
+    else
+        button1 = popupFrame.button1
+        button2 = popupFrame.button2
+    end
 
     -- Some popups have no text when they initially show, and instead get text applied OnUpdate (summons are an example)
     -- False is returned in that case, so we know to keep checking OnUpdate
@@ -308,9 +320,9 @@ function DialogKey:GetPopupButton(popupFrame)
 
     -- the ordering here means that a revive will be taken before a battle rez before a release.
     -- if revives are disabled but soulstone battlerezzes *aren't*, nothing will happen if both are available!
-    local canRelease = popupFrame.button1:GetText() == DEATH_RELEASE
-    if self.db.useSoulstoneRez and canRelease and popupFrame.button2:IsVisible() then
-        return popupFrame.button2
+    local canRelease = button1:GetText() == DEATH_RELEASE
+    if self.db.useSoulstoneRez and canRelease and button2:IsVisible() then
+        return button2
     end
 
     if self.db.dontClickRevives and (text == RECOVER_CORPSE or text:find(resurrectMatch)) then return end
@@ -334,7 +346,7 @@ function DialogKey:GetPopupButton(popupFrame)
         end
     end
 
-    return popupFrame.button1:IsVisible() and popupFrame.button1 or nil
+    return button1:IsVisible() and button1 or nil
 end
 
 --- @param frame Button
