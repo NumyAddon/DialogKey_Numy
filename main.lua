@@ -289,7 +289,7 @@ local instanceLogMatches = {
 --- @return Frame|nil|false # The button to click, nil if no button should be clicked, false if the text is empty and should be checked again later
 function DialogKey:GetPopupButton(popupFrame)
     local fontString = popupFrame.GetTextFontString and popupFrame:GetTextFontString() or popupFrame.text
-    local text = fontString:GetText()
+    local text = fontString and fontString:GetText()
     local button1, button2
     if popupFrame.GetButtons then
         button1, button2 = unpack(popupFrame:GetButtons())
