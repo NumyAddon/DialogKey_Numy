@@ -11,10 +11,12 @@ local DialogKey = LibStub("AceAddon-3.0"):NewAddon(name, "AceEvent-3.0", "AceHoo
 ns.Core = DialogKey
 
 local defaultPopupBlacklist = { -- If a popup dialog contains one of these strings, don't click it
-    AREA_SPIRIT_HEAL, -- Prevents cancelling the resurrection
-    TOO_MANY_LUA_ERRORS,
-    END_BOUND_TRADEABLE, -- Probably quite reasonable to make the user click on this one
-    ADDON_ACTION_FORBIDDEN, -- Don't disable and reload UI on errors
+    AREA_SPIRIT_HEAL = true, -- Prevents cancelling the resurrection
+    TOO_MANY_LUA_ERRORS = true,
+    END_BOUND_TRADEABLE = true, EQUIP_BIND_TRADEABLE = true, -- Probably quite reasonable to make the user click on this one
+    ADDON_ACTION_FORBIDDEN = true,                           -- Don't disable and reload UI on errors
+    CONFIRM_LEAVE_RESTRICTED_CHALLENGE_MODE = true,
+    WARN_LEAVE_RESTRICTED_CHALLENGE_MODE = true,
 }
 
 local function callFrameMethod(frame, method, ...)
@@ -273,46 +275,26 @@ function DialogKey:GetValidPopupButtons()
     return next(buttons) and buttons or nil
 end
 
--- Takes a global string like '%s has challenged you to a duel.' and converts it to a format suitable for string.find
-local summonMatch = CONFIRM_SUMMON:gsub("%%d", ".+"):format(".+", ".+", ".+")
-local duelMatch = DUEL_REQUESTED:format(".+")
-local resurrectMatch = RESURRECT_REQUEST_NO_SICKNESS:format(".+")
-local groupinviteMatch = INVITATION:format(".+")
-local instanceLogMatches = {
-    INSTANCE_LOCK_TIMER:format(".+", ".+"),
-    INSTANCE_LOCK_TIMER_PREVIOUSLY_SAVED:format(".+", ".+"),
-    INSTANCE_LOCK_WARNING:format(".+"),
-    INSTANCE_LOCK_WARNING_PREVIOUSLY_SAVED:format(".+"),
-}
-
 --- @param popupFrame StaticPopupTemplate # One of the StaticPopup1-4 frames
 --- @return Frame|nil|false # The button to click, nil if no button should be clicked, false if the text is empty and should be checked again later
 function DialogKey:GetPopupButton(popupFrame)
     local fontString = popupFrame.GetTextFontString and popupFrame:GetTextFontString() or popupFrame.text
     local text = fontString and fontString:GetText()
-    local button1, button2
-    if popupFrame.GetButtons then
-        button1, button2 = unpack(popupFrame:GetButtons())
-    else
-        button1 = popupFrame.button1
-        button2 = popupFrame.button2
-    end
+    local which = popupFrame.which
+
+    local button1 = popupFrame.button1 or popupFrame:GetButton1()
+    local button2 = popupFrame.button2 or popupFrame:GetButton2()
 
     -- Some popups have no text when they initially show, and instead get text applied OnUpdate (summons are an example)
     -- False is returned in that case, so we know to keep checking OnUpdate
     if not text or text == " " or text == "" then return false end
 
-    -- Don't accept group invitations if the option is enabled
-    if self.db.dontAcceptInvite and text:find(groupinviteMatch) then return end
-
-    -- Don't accept summons/duels/resurrects if the options are enabled
-    if self.db.dontClickSummons and text:find(summonMatch) then return end
-    if self.db.dontClickDuels and text:find(duelMatch) then return end
-    if self.db.dontAcceptInstanceLocks then
-        for _, match in pairs(instanceLogMatches) do
-            if text:find(match) then return end
-        end
-    end
+    if self.db.dontAcceptInvite and which == 'PARTY_INVITE' then return end
+    if self.db.dontClickSummons and which == 'CONFIRM_SUMMON' then return end
+    if self.db.dontClickDuels and which == 'DUEL_REQUESTED' then return end
+    if self.db.dontAcceptInstanceLocks and which == 'INSTANCE_LOCK' then return end
+    if self.db.dontAcceptAbandonVote and which == 'VOTE_ABANDON_INSTANCE_VOTE' or which == 'VOTE_ABANDON_INSTANCE_WAIT' then return end
+    if self.db.dontAcceptVoteKick and which == 'VOTE_BOOT_PLAYER' then return end
 
     -- If resurrect dialog has three buttons, and the option is enabled, use the middle one instead of the first one (soulstone, etc.)
     -- Located before resurrect/release checks/returns so it happens even if you have releases/revives disabled
@@ -325,25 +307,16 @@ function DialogKey:GetPopupButton(popupFrame)
         return button2
     end
 
-    if self.db.dontClickRevives and (text == RECOVER_CORPSE or text:find(resurrectMatch)) then return end
+    if self.db.dontClickRevives and (text == RECOVER_CORPSE or which == 'RESURRECT_NO_SICKNESS' or which == 'RESURRECT_NO_TIMER') then return end
     if self.db.dontClickReleases and canRelease then return end
 
-    -- Ignore blacklisted popup dialogs!
+    -- Ignore blacklisted popup dialogs
+    if defaultPopupBlacklist[which] or self.db.dialogBlacklist[which] then return end
     local lowerCaseText = text:lower()
     for blacklistText, _ in pairs(self.db.dialogBlacklist) do
         -- Prepend non-alphabetical characters with '%' to escape them
         blacklistText = blacklistText:gsub("%W", "%%%0"):gsub("%%%%s", ".+")
         if lowerCaseText:find(blacklistText:lower()) then return end
-    end
-
-    for _, blacklistText in pairs(defaultPopupBlacklist) do
-        -- Prepend non-alphabetical characters with '%' to escape them
-        -- Replace %s and %d with .+ to match any string or number
-        -- Trim whitespaces
-        blacklistText = blacklistText:gsub("%W", "%%%0"):gsub("%%%%s", ".+"):gsub("%%%%d", ".+"):gsub("^%s*(.-)%s*$", "%1")
-        if lowerCaseText:find(blacklistText:lower()) then
-            return
-        end
     end
 
     return button1:IsVisible() and button1 or nil

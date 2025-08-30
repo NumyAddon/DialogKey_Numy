@@ -23,6 +23,8 @@ ns.defaultOptions = {
     dontClickRevives = true,
     dontClickReleases = true,
     dontAcceptInvite = true,
+    dontAcceptAbandonVote = true,
+    dontAcceptVoteKick = true,
     dontAcceptInstanceLocks = false,
     useSoulstoneRez = true,
     handleCraftingOrders = true,
@@ -248,7 +250,7 @@ function ns:GetOptionsTable()
                         order = increment(),
                         name = wrapName("Number keys for Gossip - Risky"),
                         disabled = function() return not db.numKeysForGossip end,
-                        desc = "Ensure scrollbar is enabled if the text becomes too long. This may taint objective frame buttons, such as dropping candles in delves. If you encounter issues, just disable this option.",
+                        desc = "Ensure scrollbar is enabled if the text becomes too long. This may taint objective frame buttons. If you encounter issues, just disable this option.",
                         descStyle = "inline", width = "full", type = "toggle",
                     },
                     numKeysForQuestRewards = {
@@ -343,49 +345,62 @@ If you have trouble finding the name, try "/fstack", pressing ALT until the fram
                         order = increment(),
                         name = wrapName("Don't Accept Group Invites"),
                         desc = "Don't allow DialogKey to accept Raid/Party Invitations",
-                        descStyle = "inline", width = "full", type = "toggle",
+                        width = 1.2, type = "toggle",
                     },
                     dontAcceptInstanceLocks = {
                         order = increment(),
                         name = wrapName("Don't Accept Instance Lockouts"),
                         desc = "Don't allow DialogKey to accept/\"save\" Instance Lockouts",
-                        descStyle = "inline", width = "full", type = "toggle",
+                        width = 1.2, type = "toggle",
+                    },
+                    dontAcceptAbandonVote = {
+                        order = increment(),
+                        name = wrapName("Don't Accept M+ Abandon Key Votes"),
+                        desc = "Don't allow DialogKey to vote to abandon a m+ key",
+                        width = 1.2, type = "toggle",
+                    },
+                    dontAcceptVoteKick = {
+                        order = increment(),
+                        name = wrapName("Don't Accept Vote Kicks"),
+                        desc = "Don't allow DialogKey to vote in Vote Kicks",
+                        width = 1.2, type = "toggle",
                     },
                     dontClickSummons = {
                         order = increment(),
                         name = wrapName("Don't Accept Summons"),
                         desc = "Don't allow DialogKey to accept Summon Requests",
-                        descStyle = "inline", width = "full", type = "toggle",
+                        width = 1.2, type = "toggle",
                     },
                     dontClickDuels = {
                         order = increment(),
                         name = wrapName("Don't Accept Duels"),
                         desc = "Don't allow DialogKey to accept Duel Requests",
-                        descStyle = "inline", width = "full", type = "toggle",
+                        width = 1.2, type = "toggle",
                     },
                     dontClickRevives = {
                         order = increment(),
                         name = wrapName("Don't Accept Revives"),
                         desc = "Don't allow DialogKey to accept Resurrections",
-                        descStyle = "inline", width = "full", type = "toggle",
-                    },
-                    dontClickReleases = {
-                        order = increment(),
-                        name = wrapName("Don't Release Spirit"),
-                        desc = "Don't allow DialogKey to Release Spirit",
-                        descStyle = "inline", width = "full", type = "toggle",
+                        width = 1.2, type = "toggle",
                     },
                     useSoulstoneRez = {
                         order = increment(),
                         name = wrapName("Use Class-specific Revive"),
                         desc = "Use Soulstone/Ankh/etc. resurrection option when one is available and a normal/battle resurrection is not\n\nThis option |cffff0000ignores|r the |cffffd100Don't Accept Revives|r option!",
-                        descStyle = "inline", width = "full", type = "toggle",
+                        width = 1.2, type = "toggle",
+                    },
+                    dontClickReleases = {
+                        order = increment(),
+                        name = wrapName("Don't Release Spirit"),
+                        desc = "Don't allow DialogKey to Release Spirit",
+                        width = 1.2, type = "toggle",
                     },
                     desc = {
                         order = increment(),
                         name = [[
 Here you can create a custom list of popups that DialogKey should ignore.
 Simply add (part of) the text that appears in the popup, and DialogKey will ignore it.
+Alternatively, you can add the technical name of the popup, which you can find with /dump StaticPopup1.which while the popup is open.
 ]],
                         type = "description",
                         fontSize = "medium",
