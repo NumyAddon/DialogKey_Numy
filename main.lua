@@ -255,7 +255,7 @@ function DialogKey:GetValidPopupButtons()
     local buttons = {}
     local popupFrames = {}
     if StaticPopup_ForEachShownDialog then
-        StaticPopup_ForEachShownDialog(function(popup) table.insert(popupFrames, popup) end)
+        StaticPopup_ForEachShownDialog(function(popup) if not popup.special then table.insert(popupFrames, popup) end end)
     else
         for i = 1, 4 do
             local popup = _G["StaticPopup" .. i]
