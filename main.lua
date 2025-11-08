@@ -119,12 +119,12 @@ function DialogKey:InitGlowFrame()
     self.glowFrame = CreateFrame("Frame", nil, UIParent)
     self.glowFrame:SetPoint("CENTER", 0, 0)
     self.glowFrame:SetFrameStrata("TOOLTIP")
-    self.glowFrame:SetSize(50,50)
+    self.glowFrame:SetSize(50, 50)
     self.glowFrame:SetScript("OnUpdate", function(...) self:GlowFrameUpdate(...) end)
     self.glowFrame:Hide()
     self.glowFrame.tex = self.glowFrame:CreateTexture()
     self.glowFrame.tex:SetAllPoints()
-    self.glowFrame.tex:SetColorTexture(1,1,0,0.5)
+    self.glowFrame.tex:SetColorTexture(1, 1, 0, 0.5)
 end
 
 function DialogKey:InitMainProxyFrame()
@@ -136,7 +136,7 @@ function DialogKey:InitMainProxyFrame()
     frame:SetScript("PreClick", function()
         if InCombatLockdown() then return end
         self:ClearOverrideBindings(frame)
-        local clickButton = frame:GetAttribute("clickbutton")
+        local clickButton = frame:GetAttribute("clickbutton") --[[@as Button]]
         self:Glow(clickButton)
     end)
     frame:HookScript("OnClick", function()
@@ -278,12 +278,12 @@ end
 --- @param popupFrame StaticPopupTemplate # One of the StaticPopup1-4 frames
 --- @return Frame|nil|false # The button to click, nil if no button should be clicked, false if the text is empty and should be checked again later
 function DialogKey:GetPopupButton(popupFrame)
-    local fontString = popupFrame.GetTextFontString and popupFrame:GetTextFontString() or popupFrame.text
+    local fontString = popupFrame.GetTextFontString and popupFrame:GetTextFontString() or popupFrame.text ---@diagnostic disable-line: undefined-field
     local text = fontString and fontString:GetText()
-    local which = popupFrame.which
+    local which = popupFrame.which ---@diagnostic disable-line: undefined-field
 
-    local button1 = popupFrame.button1 or popupFrame:GetButton1()
-    local button2 = popupFrame.button2 or popupFrame:GetButton2()
+    local button1 = popupFrame.button1 or popupFrame:GetButton1() ---@diagnostic disable-line: undefined-field
+    local button2 = popupFrame.button2 or popupFrame:GetButton2() ---@diagnostic disable-line: undefined-field
 
     -- Some popups have no text when they initially show, and instead get text applied OnUpdate (summons are an example)
     -- False is returned in that case, so we know to keep checking OnUpdate
@@ -333,7 +333,7 @@ end
 function DialogKey:GetFirstVisibleCustomFrame()
     for _, frameName in ipairs(ns.orderedCustomFrames) do
         local frame = self:GetFrameByName(frameName)
-        if frame and frame:IsVisible() and frame:IsObjectType('Button') and self:GuardDisabled(frame) then
+        if frame and frame:IsVisible() and frame:IsObjectType('Button') and self:GuardDisabled(frame) then ---@diagnostic disable-line: param-type-mismatch
             return frame ---@diagnostic disable-line: return-type-mismatch
         end
     end
@@ -364,17 +364,13 @@ function DialogKey:ShouldIgnoreInput()
     local focus = GetCurrentKeyBoardFocus()
     if focus and not (self:GetValidPopupButtons() and (focus:GetName() == "SendMailNameEditBox" or focus:GetName() == "SendMailSubjectEditBox")) then return true end
 
+    -- Ignore input if there's nothing for DialogKey to click
     if
-        -- Ignore input if there's nothing for DialogKey to click
         not GossipFrame:IsVisible() and not QuestFrame:IsVisible() and not self:GetValidPopupButtons()
-        -- Ignore input if the Auction House sell frame is not open
         and (not AuctionHouseFrame or not AuctionHouseFrame:IsVisible())
         and not self:GetFirstVisibleCraftingOrderFrame()
-        -- Ignore input if no custom frames are visible
         and not self:GetFirstVisibleCustomFrame()
-        -- Ignore input if no player choice buttons are visible
         and not next(self.playerChoiceButtons)
-        -- Ignore input if no spec buttons are visible
         and not next(self.specButtons)
     then
         return true
@@ -395,7 +391,7 @@ function DialogKey:ClearOverrideBindings(owner)
     end
     if not self.activeOverrideBindings[owner] then return end
     for key in pairs(self.activeOverrideBindings[owner]) do
-        SetOverrideBinding(owner, true, key, nil)
+        SetOverrideBinding(owner, true, key, nil) ---@diagnostic disable-line: param-type-mismatch
     end
     self.activeOverrideBindings[owner] = nil
 end
@@ -414,6 +410,8 @@ function DialogKey:SetOverrideBindings(owner, targetName, keys)
     end
 end
 
+--- @param frame Button
+--- @param key string
 function DialogKey:SetClickbuttonBinding(frame, key)
     if InCombatLockdown() then return end
     self.frame:SetAttribute("clickbutton", frame)
@@ -423,6 +421,7 @@ function DialogKey:SetClickbuttonBinding(frame, key)
     RunNextFrame(function() self:ClearOverrideBindings(self.frame) end)
 end
 
+--- @param key string
 function DialogKey:HandleKey(key)
     if not InCombatLockdown() then self.frame:SetPropagateKeyboardInput(true) end
     local doAction = (key == self.db.keys[1] or key == self.db.keys[2])
@@ -467,8 +466,7 @@ function DialogKey:HandleKey(key)
             end
         end
 
-        -- Complete Quest
-        if QuestFrameProgressPanel:IsVisible() then
+        if QuestFrameProgressPanel:IsVisible() then -- Complete Quest
             if not QuestFrameCompleteButton:IsEnabled() and self.db.ignoreDisabledButtons then
                 -- click "Cencel" button when "Complete" is disabled on progress panel
                 self:SetClickbuttonBinding(QuestFrameGoodbyeButton, key)
@@ -476,12 +474,10 @@ function DialogKey:HandleKey(key)
                 self:SetClickbuttonBinding(QuestFrameCompleteButton, key)
             end
             return
-        -- Accept Quest
-        elseif QuestFrameDetailPanel:IsVisible() then
+        elseif QuestFrameDetailPanel:IsVisible() then -- Accept Quest
             self:SetClickbuttonBinding(QuestFrameAcceptButton, key)
             return
-        -- Take Quest Reward - using manual API
-        elseif QuestFrameRewardPanel:IsVisible() then
+        elseif QuestFrameRewardPanel:IsVisible() then -- Take Quest Reward - using manual API
             self.frame:SetPropagateKeyboardInput(false)
             if self.itemChoice == -1 and GetNumQuestChoices() > 1 then
                 QuestChooseRewardError()
@@ -589,15 +585,15 @@ function DialogKey:EnumerateGossips()
 
     local frames = {}
     self.frames = {}
-    if QuestFrameGreetingPanel and QuestFrameGreetingPanel.titleButtonPool then
+    if QuestFrameGreetingPanel and QuestFrameGreetingPanel.titleButtonPool then ---@diagnostic disable-line: undefined-field
         --- @type FramePool<Button, QuestTitleButtonTemplate>
-        local pool = QuestFrameGreetingPanel.titleButtonPool
+        local pool = QuestFrameGreetingPanel.titleButtonPool ---@diagnostic disable-line: undefined-field
         for tab in (pool:EnumerateActive()) do
             if tab:GetObjectType() == "Button" then
                 table.insert(frames, tab)
             end
         end
-    elseif QuestFrameGreetingPanel and not QuestFrameGreetingPanel.titleButtonPool then
+    elseif QuestFrameGreetingPanel and not QuestFrameGreetingPanel.titleButtonPool then ---@diagnostic disable-line: undefined-field
         --- @type ScriptRegion[]
         local children = { QuestGreetingScrollChildFrame:GetChildren() }
         for _, child in ipairs(children) do
@@ -609,7 +605,7 @@ function DialogKey:EnumerateGossips()
         return
     end
 
-    table.sort(frames, function(a,b)
+    table.sort(frames, function(a, b)
         if a.GetOrderIndex then
             return a:GetOrderIndex() < b:GetOrderIndex()
         else
@@ -641,12 +637,12 @@ end
 
 -- Glow Functions --
 --- @param frame Frame
---- @param speedModifier number # increasing this number will speed up the fade out of the glow
---- @param forceShow boolean # if true, the glow will be shown regardless of the showGlow setting
+--- @param speedModifier number? # increasing this number will speed up the fade out of the glow
+--- @param forceShow boolean? # if true, the glow will be shown regardless of the showGlow setting
 function DialogKey:Glow(frame, speedModifier, forceShow)
     if self.db.showGlow or forceShow then
         self.glowFrame:SetAllPoints(frame)
-        self.glowFrame.tex:SetColorTexture(1,1,0,0.5)
+        self.glowFrame.tex:SetColorTexture(1, 1, 0, 0.5)
         self.glowFrame:Show()
         self.glowFrame:SetAlpha(1)
         self.glowFrame.speedModifier = speedModifier or 1
@@ -726,7 +722,7 @@ function DialogKey:GetFrameUnderCursor()
             and getFrameName(frame)
             and self:GetFrameByName(getFrameName(frame))
         then
-            return frame, getFrameName(frame);
+            return frame, getFrameName(frame); ---@diagnostic disable-line: return-type-mismatch
         end
     end
 end
