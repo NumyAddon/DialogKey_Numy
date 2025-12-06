@@ -156,10 +156,15 @@ function ns:RegisterOptions()
     if not initialized then
         initialized = true
         LibStub("AceConfig-3.0"):RegisterOptionsTable(self.configPanelName, function() return self:GetOptionsTable() end)
-        LibStub("AceConfigDialog-3.0"):AddToBlizOptions(self.configPanelName)
+        local _, categoryID = LibStub("AceConfigDialog-3.0"):AddToBlizOptions(self.configPanelName)
+        self.categoryID = categoryID
     else
         LibStub("AceConfigRegistry-3.0"):NotifyChange(self.configPanelName)
     end
+end
+
+function ns:OpenConfig()
+    Settings.OpenToCategory(self.categoryID)
 end
 
 function ns:GetOptionsTable()

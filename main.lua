@@ -82,7 +82,7 @@ function DialogKey:OnInitialize()
         elseif func == 'remove' then
             self:RemoveFrame(args)
         else
-            Settings.OpenToCategory(ns.configPanelName)
+            ns:OpenConfig()
         end
     end
 end
