@@ -48,6 +48,7 @@ DialogKey.playerChoiceButtons = {}
 --- @type Button[]
 DialogKey.specButtons = {}
 DialogKey.activeOverrideBindings = {}
+DialogKey.activeDeferClearBindings = {}
 
 DialogKey.dummyButton = CreateFrame("Button")
 
@@ -132,15 +133,22 @@ function DialogKey:InitMainProxyFrame()
     frame:RegisterForClicks("AnyUp", "AnyDown")
     frame:SetAttribute("type", "click")
     frame:SetAttribute("typerelease", "click")
-    frame:SetAttribute("pressAndHoldAction", "1")
-    frame:SetScript("PreClick", function()
+    frame:SetScript("PreClick", function(_, _, down)
         if InCombatLockdown() then return end
-        self:ClearOverrideBindings(frame)
+
+        local useOnDown = C_CVar.GetCVarBool("ActionButtonUseKeyDown")
+        if down ~= useOnDown then return end
+
         local clickButton = frame:GetAttribute("clickbutton") --[[@as Button]]
         self:Glow(clickButton)
     end)
-    frame:HookScript("OnClick", function()
+    frame:HookScript("OnClick", function(_, _, down)
         if InCombatLockdown() then return end
+
+        local useOnDown = C_CVar.GetCVarBool("ActionButtonUseKeyDown")
+        if down ~= useOnDown then return end
+
+        self:ClearOverrideBindings(frame)
         frame:SetAttribute("clickbutton", nil)
         frame:SetPropagateKeyboardInput(true)
     end)
@@ -379,6 +387,21 @@ function DialogKey:ShouldIgnoreInput()
     return false
 end
 
+--- subsequent calls will cancel any existing deferred call
+--- @param owner Frame
+--- @param delay number?
+function DialogKey:DeferClearOverrideBindings(owner, delay)
+    delay = delay or 0
+    if self.activeDeferClearBindings[owner] then
+        self.activeDeferClearBindings[owner]:Cancel()
+        self.activeDeferClearBindings[owner] = nil
+    end
+    self.activeDeferClearBindings[owner] = C_Timer.NewTimer(delay, function()
+        self:ClearOverrideBindings(owner)
+        self.activeDeferClearBindings[owner] = nil
+    end)
+end
+
 -- Clears all override bindings associated with an owner, clears all override bindings if no owner is passed
 --- @param owner Frame?
 function DialogKey:ClearOverrideBindings(owner)
@@ -388,6 +411,10 @@ function DialogKey:ClearOverrideBindings(owner)
             self:ClearOverrideBindings(owner)
         end
         return
+    end
+    if self.activeDeferClearBindings[owner] then
+        self.activeDeferClearBindings[owner]:Cancel()
+        self.activeDeferClearBindings[owner] = nil
     end
     if not self.activeOverrideBindings[owner] then return end
     for key in pairs(self.activeOverrideBindings[owner]) do
@@ -417,8 +444,10 @@ function DialogKey:SetClickbuttonBinding(frame, key)
     self.frame:SetAttribute("clickbutton", frame)
     self:SetOverrideBindings(self.frame, self.frame:GetName(), { key })
 
+    local useOnDown = C_CVar.GetCVarBool("ActionButtonUseKeyDown")
     -- just in case something goes horribly wrong, we do NOT want to get the user stuck in a situation where the keyboard stops working
-    RunNextFrame(function() self:ClearOverrideBindings(self.frame) end)
+    -- 5 seconds is a rather arbitrary amount of time to wait, but meh
+    self:DeferClearOverrideBindings(self.frame, useOnDown and 0 or 5)
 end
 
 --- @param key string
