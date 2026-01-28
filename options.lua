@@ -164,6 +164,10 @@ function ns:RegisterOptions()
 end
 
 function ns:OpenConfig()
+    if C_SettingsUtil and C_SettingsUtil.OpenSettingsPanel and InCombatLockdown() then
+        LibStub("AceConfigDialog-3.0"):Open(self.configPanelName);
+        return;
+    end
     Settings.OpenToCategory(self.categoryID)
 end
 
