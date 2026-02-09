@@ -1,6 +1,8 @@
 --- @class DialogKeyNS
 local ns = select(2, ...)
 
+local issecretvalue = issecretvalue or function(v) return false end
+
 ns.configPanelName = 'DialogKey - Numy Edition'
 --- @class DialogKeyDB
 ns.defaultOptions = {
@@ -125,9 +127,11 @@ do
     local lastSetOwnerCall
     local ACDTooltip = LibStub("AceConfigDialog-3.0").tooltip
     hooksecurefunc(ACDTooltip, 'SetOwner', function(_, ...)
-        lastSetOwnerCall = {...}
+        lastSetOwnerCall = { ... }
     end)
+    --- @param tooltip GameTooltip
     hooksecurefunc(ACDTooltip, 'AddLine', function(tooltip, text, r, g, b, wrap)
+        if issecretvalue(text) then return end
         local title, desc
         if text == MAGIC_TOOLTIP_TEXTS.up then
             title = "Move up"
@@ -304,17 +308,6 @@ function ns:GetOptionsTable()
                     },
                 },
             },
-            --priorityGroup = {
-            --    order = increment(),
-            --    name = "Priority",
-            --    desc = "Advanced Options to control DialogKey button priority",
-            --    type = "group",
-            --    args = {
-            -- todo: some way to set priority between built-in frames, not sure whether I'd like a list of all custom frames
-            --       and built-in frames intermixed in that list, or have <custom watchlist frames> as an item in a "master" list
-            --       the 2nd option is far far simpler, but also less flexible. but then again, do we *need* so much flexibility?
-            --    },
-            --},
             watchlistGroup = {
                 order = increment(),
                 name = "Custom Watchlist",
