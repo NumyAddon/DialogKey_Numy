@@ -14,7 +14,7 @@ local defaultPopupBlacklist = { -- If a popup dialog contains one of these strin
     AREA_SPIRIT_HEAL = true, -- Prevents cancelling the resurrection
     TOO_MANY_LUA_ERRORS = true,
     END_BOUND_TRADEABLE = true, EQUIP_BIND_TRADEABLE = true, -- Probably quite reasonable to make the user click on this one
-    ADDON_ACTION_FORBIDDEN = true,                           -- Don't disable and reload UI on errors
+    ADDON_ACTION_FORBIDDEN = true, -- Don't disable and reload UI on errors
     CONFIRM_LEAVE_RESTRICTED_CHALLENGE_MODE = true,
     WARN_LEAVE_RESTRICTED_CHALLENGE_MODE = true,
 }
@@ -69,7 +69,9 @@ function DialogKey:OnInitialize()
     self:InitMainProxyFrame()
 
     self:SecureHook("QuestInfoItem_OnClick", "SelectItemReward")
-    self:SecureHook(GossipFrame, "Update", "OnGossipFrameUpdate")
+    GossipFrame.GreetingPanel.ScrollBox:RegisterCallback("OnAcquiredFrame", self.OnGossipFrameAcquired, self)
+    GossipFrame.GreetingPanel.ScrollBox:RegisterCallback("OnReleasedFrame", self.OnGossipFrameReleased, self)
+    GossipFrame.GreetingPanel.ScrollBox:RegisterCallback(ScrollBoxListMixin.Event.OnDataProviderReassigned, self.OnGossipDataProviderChange, self)
 
     ns:RegisterOptions()
 
@@ -216,45 +218,93 @@ function DialogKey:OnSpecFrameHide()
     self.specButtons = {}
 end
 
---- @param GossipFrame GossipFrame
-function DialogKey:OnGossipFrameUpdate(GossipFrame)
+function DialogKey:OnGossipDataProviderChange()
+    self.frames = {}
+    self.orderedGossipFrames = {}
     local scrollbox = GossipFrame.GreetingPanel.ScrollBox
-
-    self.frames = {};
     local n = 1
-    for _, frame in scrollbox:EnumerateFrames() do
-        local data = frame.GetElementData and frame:GetElementData()
+    for _, elementData in scrollbox:GetDataProvider():Enumerate() do
         local tag
-        if GOSSIP_BUTTON_TYPE_OPTION == data.buttonType then
+        if GOSSIP_BUTTON_TYPE_OPTION == elementData.buttonType then
             tag = "name"
-        elseif GOSSIP_BUTTON_TYPE_AVAILABLE_QUEST == data.buttonType then
+        elseif GOSSIP_BUTTON_TYPE_AVAILABLE_QUEST == elementData.buttonType then
             tag = "title"
-        elseif GOSSIP_BUTTON_TYPE_ACTIVE_QUEST == data.buttonType and (data.info.isComplete or not self.db.ignoreInProgressQuests) then
+        elseif GOSSIP_BUTTON_TYPE_ACTIVE_QUEST == elementData.buttonType and (elementData.info.isComplete or not self.db.ignoreInProgressQuests) then
             tag = "title"
         end
         if tag then
-            if self.db.numKeysForGossip then
-                local oldText = data.info[tag]
-                if data.info.flags and FlagsUtil.IsSet(data.info.flags, Enum.GossipOptionRecFlags.QuestLabelPrepend) then
+            self.orderedGossipFrames[elementData] = n
+            if n <= 10 then
+                local info = elementData.info
+                local oldText = info[tag]
+                if info.flags and FlagsUtil.IsSet(info.flags, Enum.GossipOptionRecFlags.QuestLabelPrepend) then
                     oldText = GOSSIP_QUEST_OPTION_PREPEND:format(oldText);
                 end
-                local newText = (n % 10) .. ". " .. (oldText:match("^%d. (.+)$") or oldText)
-                if self.db.riskyNumKeysForGossip then
-                    data.info[tag] = newText -- this may not be safe, but it looks like the only somewhat reliable way to ensure the scrollbar is enabled when needed
+                if info.isIgnored then
+                    oldText = IGNORED_QUEST_DISPLAY:format(oldText);
+                elseif info.isTrivial then
+                    oldText = TRIVIAL_QUEST_DISPLAY:format(oldText);
                 end
-                frame:SetText(newText)
-                frame:SetHeight(frame:GetFontString():GetHeight() + 2)
+                local newText = (n % 10) .. ". " .. (oldText:match("^%d. (.+)$") or oldText)
+
+                elementData.info.DialogKeyNumy_Text = newText
             end
-            self.frames[n] = frame
+
             n = n + 1
         end
-        if n > 10 then break end
+
+        local calculatorFrame
+        if elementData.titleOptionButton then
+            calculatorFrame = elementData.titleOptionButton
+        elseif elementData.availableQuestButton then
+            calculatorFrame = elementData.availableQuestButton
+        elseif elementData.activeQuestButton then
+            calculatorFrame = elementData.activeQuestButton
+        end
+        if calculatorFrame and not calculatorFrame.DialogKeyNumy_Hooked then
+            hooksecurefunc(calculatorFrame, 'Setup', function(_, info)
+                if info.DialogKeyNumy_Text then
+                    calculatorFrame:SetTextAndResize(info.DialogKeyNumy_Text)
+                end
+            end)
+            calculatorFrame.DialogKeyNumy_Hooked = true
+        end
     end
-    --- @type ScrollBoxListLinearViewMixin
-    local view = scrollbox:GetView()
-    view:Layout()
-    if self.db.riskyNumKeysForGossip then
-        scrollbox:ScrollIncrease() -- force the scrollbar to show if needed
+end
+
+--- @param frame GossipTitleButtonTemplate
+--- @param elementData table
+function DialogKey:OnGossipFrameAcquired(frame, elementData)
+    if not self.db.numKeysForGossip then return; end
+
+    local n = self.orderedGossipFrames[elementData]
+    local newText = elementData.info and elementData.info.DialogKeyNumy_Text
+
+    if not n or n > 10 or not newText then return end
+
+    self.frames[n] = frame
+    frame:SetTextAndResize(newText)
+
+    if not frame.DialogKeyNumy_Text then
+        --- @param f GossipTitleButtonTemplate
+        local function onSetText(f, text)
+            local savedText = f.DialogKeyNumy_Text
+            if text == savedText or not savedText or savedText == "" then return end
+
+            f:SetTextAndResize(savedText)
+        end
+        hooksecurefunc(frame, 'SetText', onSetText)
+        hooksecurefunc(frame, 'SetFormattedText', function(f, format, ...)
+            local text = format:format(...)
+            onSetText(f, text)
+        end)
+    end
+    frame.DialogKeyNumy_Text = newText
+end
+
+function DialogKey:OnGossipFrameReleased(frame)
+    if frame.DialogKeyNumy_Text then
+        frame.DialogKeyNumy_Text = ""
     end
 end
 
@@ -455,7 +505,10 @@ function DialogKey:HandleKey(key)
     if not InCombatLockdown() then self.frame:SetPropagateKeyboardInput(true) end
     local doAction = (key == self.db.keys[1] or key == self.db.keys[2])
     local keynum = doAction and 1 or tonumber(key)
-    if key == "0" then
+    if key:match("^NUMPAD") then
+        keynum = tonumber((key:gsub("NUMPAD", "")))
+    end
+    if key == "0" or key == "NUMPAD0" then
         keynum = 10
     end
     if not doAction and not keynum then return end

@@ -18,7 +18,6 @@ ns.defaultOptions = {
     --- @type table<string, number> # [frameName] = priority
     customFrames = {},
     numKeysForGossip = true,
-    riskyNumKeysForGossip = true,
     numKeysForQuestRewards = true,
     dontClickSummons = true,
     dontClickDuels = true,
@@ -257,13 +256,6 @@ function ns:GetOptionsTable()
                         order = increment(),
                         name = wrapName("Number keys for Gossip"),
                         desc = "Use the number keys (1 -> 0) to select Gossip options or Quests from an NPC dialog window",
-                        descStyle = "inline", width = "full", type = "toggle",
-                    },
-                    riskyNumKeysForGossip = {
-                        order = increment(),
-                        name = wrapName("Number keys for Gossip - Risky"),
-                        disabled = function() return not db.numKeysForGossip end,
-                        desc = "Ensure scrollbar is enabled if the text becomes too long. This may taint objective frame buttons. If you encounter issues, just disable this option.",
                         descStyle = "inline", width = "full", type = "toggle",
                     },
                     numKeysForQuestRewards = {
