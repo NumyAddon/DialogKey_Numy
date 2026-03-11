@@ -7,8 +7,8 @@ local StripHyperlinks = C_StringUtil and C_StringUtil.StripHyperlinks or StripHy
 
 _G.DialogKeyNS = ns -- expose ourselves to the world :)
 
---- @class DialogKey: AceAddon, AceEvent-3.0, AceHook-3.0
-local DialogKey = LibStub("AceAddon-3.0"):NewAddon(name, "AceEvent-3.0", "AceHook-3.0")
+--- @class DialogKey: AceAddon, NumyAceEvent-3.0, AceHook-3.0
+local DialogKey = LibStub("AceAddon-3.0"):NewAddon(name, "NumyAceEvent-3.0", "AceHook-3.0")
 ns.Core = DialogKey
 
 local defaultPopupBlacklist = { -- If a popup dialog contains one of these strings, don't click it
