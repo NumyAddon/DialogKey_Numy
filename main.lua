@@ -3,6 +3,7 @@ local name = ...
 local ns = select(2, ...)
 
 local GetFrameMetatable = _G.GetFrameMetatable or function() return getmetatable(CreateFrame('FRAME')) end
+local StripHyperlinks = C_StringUtil and C_StringUtil.StripHyperlinks or StripHyperlinks;
 
 _G.DialogKeyNS = ns -- expose ourselves to the world :)
 
@@ -289,7 +290,7 @@ function DialogKey:OnGossipFrameAcquired(frame, elementData)
         --- @param f GossipTitleButtonTemplate
         local function onSetText(f, text)
             local savedText = f.DialogKeyNumy_Text
-            if text == savedText or not savedText or savedText == "" then return end
+            if not savedText or savedText == "" or StripHyperlinks(savedText) == StripHyperlinks(text) then return end
 
             f:SetTextAndResize(savedText)
         end
