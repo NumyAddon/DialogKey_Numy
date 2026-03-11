@@ -17,6 +17,7 @@ ns.defaultOptions = {
     dialogBlacklist = {},
     --- @type table<string, number> # [frameName] = priority
     customFrames = {},
+    treatNumpadAsNumbers = true,
     numKeysForGossip = true,
     numKeysForQuestRewards = true,
     dontClickSummons = true,
@@ -250,6 +251,12 @@ function ns:GetOptionsTable()
                         order = increment(),
                         name = wrapName("Ignore In-Progress Quests"),
                         desc = "Gossip options for in-progress quests are ignored, and only completed or unaccepted quests are clicked",
+                        descStyle = "inline", width = "full", type = "toggle",
+                    },
+                    treatNumpadAsNumbers = {
+                        order = increment(),
+                        name = wrapName("Treat Numpad keys as Number keys"),
+                        desc = "Allow using Numpad keys (Numpad 1 -> Numpad 0) as alternatives to the number keys (1 -> 0)",
                         descStyle = "inline", width = "full", type = "toggle",
                     },
                     numKeysForGossip = {

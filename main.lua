@@ -505,12 +505,13 @@ end
 function DialogKey:HandleKey(key)
     if not InCombatLockdown() then self.frame:SetPropagateKeyboardInput(true) end
     local doAction = (key == self.db.keys[1] or key == self.db.keys[2])
-    local keynum = doAction and 1 or tonumber(key)
-    if key:match("^NUMPAD") then
-        keynum = tonumber((key:gsub("NUMPAD", "")))
-    end
-    if key == "0" or key == "NUMPAD0" then
+    local keynum = tonumber(key)
+    if doAction then
+        keynum = 1
+    elseif key == "0" or (key == "NUMPAD0" and self.db.treatNumpadAsNumbers) then
         keynum = 10
+    elseif key:match("^NUMPAD") and self.db.treatNumpadAsNumbers then
+        keynum = tonumber((key:gsub("NUMPAD", "")))
     end
     if not doAction and not keynum then return end
     if self:ShouldIgnoreInput() then return end
