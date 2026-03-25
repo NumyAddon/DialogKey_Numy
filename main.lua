@@ -186,7 +186,7 @@ function DialogKey:OnPlayerChoiceShow()
             for buttonFrame in option.buttons.buttonFramePool:EnumerateActive() do
                 local button = buttonFrame.Button
                 local key = buttons[button.buttonID]
-                if key then
+                if key and button and button.Text:GetText() then
                     if self.db.numKeysForPlayerChoice then
                         button.Text:SetText(key .. ' ' .. button.Text:GetText())
                     end
