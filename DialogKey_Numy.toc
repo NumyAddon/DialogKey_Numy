@@ -23,5 +23,6 @@
 ## Category-zhTW: 使用者介面
 
 embeds.xml
+api.lua
 options.lua
 main.lua

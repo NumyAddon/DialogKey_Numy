@@ -20,6 +20,8 @@ local defaultPopupBlacklist = { -- If a popup dialog contains one of these strin
     WARN_LEAVE_RESTRICTED_CHALLENGE_MODE = true,
 }
 
+local FrameType = ns.API.Enum.FrameType
+
 local function callFrameMethod(frame, method, ...)
     local functionRef = frame[method] or GetFrameMetatable().__index[method] or nop;
     local ok, result = pcall(functionRef, frame, ...);
@@ -50,6 +52,7 @@ DialogKey.playerChoiceButtons = {}
 DialogKey.specButtons = {}
 DialogKey.activeOverrideBindings = {}
 DialogKey.activeDeferClearBindings = {}
+DialogKey.addonFrameRegistry = {}
 
 DialogKey.dummyButton = CreateFrame("Button")
 
@@ -415,7 +418,55 @@ function DialogKey:GetFirstVisibleCraftingOrderFrame()
     end
 end
 
-function DialogKey:ShouldIgnoreInput()
+--- @param frameType DialogKeyAPI.Enum.FrameType
+--- @param button Button|fun():Button|nil
+function DialogKey:RegisterAddonFrame(frameType, button)
+    self.addonFrameRegistry[frameType] = self.addonFrameRegistry[frameType] or {}
+    self.addonFrameRegistry[frameType][button] = true
+end
+
+--- @param frameType DialogKeyAPI.Enum.FrameType
+--- @param button Button|fun():Button|nil
+function DialogKey:UnregisterAddonFrame(frameType, button)
+    self.addonFrameRegistry[frameType] = self.addonFrameRegistry[frameType] or {}
+    self.addonFrameRegistry[frameType][button] = nil
+end
+
+--- @param frameType DialogKeyAPI.Enum.FrameType
+--- @return Button|nil
+function DialogKey:GetFirstVisibleAddonFrame(frameType)
+    local frames = self.addonFrameRegistry[frameType]
+    if not frames then return nil end
+
+    for frame, _ in pairs(frames) do
+        if type(frame) == "function" then
+            frame = frame()
+        end
+        if frame and frame:IsVisible() and frame:IsObjectType('Button') and self:GuardDisabled(frame) then
+            return frame
+        end
+    end
+end
+
+--- @param frameType DialogKeyAPI.Enum.FrameType
+function DialogKey:IsFrameTypeEnabled(frameType)
+    --- @type table<DialogKeyAPI.Enum.FrameType, boolean>
+    local frameTypeSettingMap = {
+        [FrameType.Popup] = true,
+        [FrameType.CraftingOrder] = self.db.handleCraftingOrders,
+        [FrameType.CustomFrame] = true,
+        [FrameType.AuctionHouse] = self.db.postAuctions,
+        [FrameType.PlayerChoice] = self.db.handlePlayerChoice,
+        [FrameType.SpecFrame] = self.db.handleSpecFrame,
+        [FrameType.Quest] = true,
+        [FrameType.Gossip] = true,
+    }
+
+    return frameTypeSettingMap[frameType]
+end
+
+--- @param hasAddonFrame boolean
+function DialogKey:ShouldIgnoreInput(hasAddonFrame)
     if InCombatLockdown() then return true end
 
     if self.db.ignoreWithModifier and (IsShiftKeyDown() or IsControlKeyDown() or IsAltKeyDown()) then return true end
@@ -431,6 +482,7 @@ function DialogKey:ShouldIgnoreInput()
         and not self:GetFirstVisibleCustomFrame()
         and not next(self.playerChoiceButtons)
         and not next(self.specButtons)
+        and not hasAddonFrame
     then
         return true
     end
@@ -514,11 +566,25 @@ function DialogKey:HandleKey(key)
         keynum = tonumber((key:gsub("NUMPAD", "")))
     end
     if not doAction and not keynum then return end
-    if self:ShouldIgnoreInput() then return end
+
+    --- @type table<DialogKeyAPI.Enum.FrameType, Button>
+    local addonFrames = {}
+    local hasAddonFrame = false
+    if doAction then
+        for frameType, _ in pairs(self.addonFrameRegistry) do
+            if self:IsFrameTypeEnabled(frameType) then
+                hasAddonFrame = true
+                addonFrames[frameType] = self:GetFirstVisibleAddonFrame(frameType)
+            end
+        end
+    end
+
+    if self:ShouldIgnoreInput(hasAddonFrame) then return end
     -- DialogKey pressed, interact with popups, accepts..
     if doAction then
         -- Popups
         local popupButtons = self:GetValidPopupButtons()
+        if addonFrames[FrameType.Popup] then popupButtons = { addonFrames[FrameType.Popup] } end
         if popupButtons then
             -- todo: set a binding for each popup button?
             self:SetClickbuttonBinding(popupButtons[1], key)
@@ -526,30 +592,34 @@ function DialogKey:HandleKey(key)
         end
 
         -- Crafting Orders
-        local craftingOrderFrame = self:GetFirstVisibleCraftingOrderFrame()
+        local craftingOrderFrame = addonFrames[FrameType.CraftingOrder] or self:GetFirstVisibleCraftingOrderFrame()
         if craftingOrderFrame then
             self:SetClickbuttonBinding(craftingOrderFrame, key)
             return
         end
 
         -- Custom Frames
-        local customFrame = self:GetFirstVisibleCustomFrame()
+        local customFrame = addonFrames[FrameType.CustomFrame] or self:GetFirstVisibleCustomFrame()
         if customFrame then
             self:SetClickbuttonBinding(customFrame, key)
             return
         end
 
         -- Auction House
-        if self.db.postAuctions and AuctionHouseFrame and AuctionHouseFrame:IsVisible() then
-            if AuctionHouseFrame.displayMode == AuctionHouseFrameDisplayMode.CommoditiesSell then
-                self:SetClickbuttonBinding(AuctionHouseFrame.CommoditiesSellFrame.PostButton, key)
-                return
-            elseif AuctionHouseFrame.displayMode == AuctionHouseFrameDisplayMode.ItemSell then
-                self:SetClickbuttonBinding(AuctionHouseFrame.ItemSellFrame.PostButton, key)
+        if self.db.postAuctions and (addonFrames[FrameType.AuctionHouse] or AuctionHouseFrame and AuctionHouseFrame:IsVisible()) then
+            local button = addonFrames[FrameType.Popup]
+                or (AuctionHouseFrame.displayMode == AuctionHouseFrameDisplayMode.CommoditiesSell and AuctionHouseFrame.CommoditiesSellFrame.PostButton)
+                or (AuctionHouseFrame.displayMode == AuctionHouseFrameDisplayMode.ItemSell and AuctionHouseFrame.ItemSellFrame.PostButton)
+            if button then
+                self:SetClickbuttonBinding(button, key)
                 return
             end
         end
 
+        if addonFrames[FrameType.Quest] then
+            self:SetClickbuttonBinding(addonFrames[FrameType.Quest], key)
+            return
+        end
         if QuestFrameProgressPanel:IsVisible() then -- Complete Quest
             if not QuestFrameCompleteButton:IsEnabled() and self.db.ignoreDisabledButtons then
                 -- click "Cencel" button when "Complete" is disabled on progress panel
@@ -575,10 +645,10 @@ function DialogKey:HandleKey(key)
 
     -- Player Choice
     if
-        ((self.db.handlePlayerChoice and doAction) or (self.db.numKeysForPlayerChoice and not doAction))
-        and next(self.playerChoiceButtons)
+        addonFrames[FrameType.PlayerChoice] or
+        (((self.db.handlePlayerChoice and doAction) or (self.db.numKeysForPlayerChoice and not doAction)) and next(self.playerChoiceButtons))
     then
-        local button = self.playerChoiceButtons[keynum]
+        local button = addonFrames[FrameType.PlayerChoice] or self.playerChoiceButtons[keynum]
         if button and (not self.db.ignoreDisabledButtons or button:IsEnabled()) then
             self:SetClickbuttonBinding(button, key)
             return
@@ -586,8 +656,8 @@ function DialogKey:HandleKey(key)
     end
 
     -- Spec Frame
-    if self.db.handleSpecFrame and next(self.specButtons) then
-        local button = self.specButtons[keynum]
+    if addonFrames[FrameType.SpecFrame] or (self.db.handleSpecFrame and next(self.specButtons)) then
+        local button = addonFrames[FrameType.SpecFrame] or self.specButtons[keynum]
         if button then
             -- blocks keybind for currently selected spec index
             if not button:IsVisible() then button = self.dummyButton end
@@ -597,7 +667,11 @@ function DialogKey:HandleKey(key)
     end
 
     -- GossipFrame
-    if (doAction or self.db.numKeysForGossip) and GossipFrame.GreetingPanel:IsVisible() then
+    if addonFrames[FrameType.Gossip] or ((doAction or self.db.numKeysForGossip) and GossipFrame.GreetingPanel:IsVisible()) then
+        if addonFrames[FrameType.Gossip] then
+            self:SetClickbuttonBinding(addonFrames[FrameType.Gossip], key)
+            return
+        end
         while keynum and keynum > 0 and keynum <= #self.frames do
             local choice = self.frames[keynum] and self.frames[keynum].GetElementData and self.frames[keynum].GetElementData()
             -- Skip grey quest (active but not completed) when pressing DialogKey
