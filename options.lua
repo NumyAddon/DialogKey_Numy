@@ -149,7 +149,7 @@ do
         if title then
             -- setting text to an empty string seems to clear the owner and effectively resets the tooltip :/
             tooltip:SetOwner(unpack(lastSetOwnerCall))
-            tooltip:SetText(title, 1, .82, 0, true)
+            tooltip:SetText(title, 1, 0.82, 0, 1, true)
             tooltip:AddLine(desc, r, g, b, wrap)
         end
     end)
