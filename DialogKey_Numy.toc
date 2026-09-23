@@ -5,6 +5,8 @@
 ## Title: DialogKey - Numy Edition
 ## Notes: Lets you hit a key to confirm loot/purchase dialogs, accept/complete quests, select quest rewards, etc. Hit 2 to select a reward then spacebar to complete quests? Easy!
 ## Author: Numy (previous verions by: Foxthorn, N01ch, FuriousProgrammer)
+## X-GameType: [Game]
+## X-GameFamily: [Family]
 ## Version: @project-version@
 ## IconTexture: Interface\Addons\DialogKey_Numy\media\icon
 ## SavedVariables: DialogKeyNumyDB
