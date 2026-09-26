@@ -18,6 +18,7 @@ local defaultPopupBlacklist = { -- If a popup dialog contains one of these strin
     ADDON_ACTION_FORBIDDEN = true, -- Don't disable and reload UI on errors
     CONFIRM_LEAVE_RESTRICTED_CHALLENGE_MODE = true,
     WARN_LEAVE_RESTRICTED_CHALLENGE_MODE = true,
+    SHARD_TRANSFER_IMMINENT_EVENT = true, SHARD_TRANSFER_IMMEDIATE = true, -- Forever's shard refresh popup
 }
 
 local FrameType = ns.API.Enum.FrameType
