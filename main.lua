@@ -147,6 +147,7 @@ function DialogKey:InitMainProxyFrame()
         if down ~= useOnDown then return end
 
         local clickButton = frame:GetAttribute("clickbutton") --[[@as Button]]
+        if not clickButton then return end
         self:Glow(clickButton)
     end)
     frame:HookScript("OnClick", function(_, _, down)
